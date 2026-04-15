@@ -1,0 +1,22 @@
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+.DS_Store
+/build
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Local documentation — not tracked in version control
+MEDIUM_POST.md
+MEDIUM_POST_ES.md
+MEDIUM_POST_GDE.md
+MEDIUM_POST_EN.md
+MEDIUM_POST_EN_PUBLISH.md

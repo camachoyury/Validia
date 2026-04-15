@@ -1,0 +1,7 @@
+/build
+
+# AI model files — too large for GitHub (>1 GB)
+# Download from: https://huggingface.co/litert-community/gemma-4-E2B-it-litert-lm
+# Place in: app/src/main/assets/gemma-4-E2B-it.litertlm
+src/main/assets/*.litertlm
+src/main/assets/*.task
