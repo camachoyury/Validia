@@ -1,0 +1,2020 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Codelab IA On-Device, Gemma 4 en Android</title>
+  <style>
+    /* ── Reset & base ── */
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+    html { font-size: 16px; scroll-behavior: smooth; }
+    body {
+      font-family: "Google Sans", Roboto, Arial, sans-serif;
+      color: #202124;
+      background: #fff;
+      display: flex;
+      min-height: 100vh;
+    }
+
+    /* ── Sidebar ── */
+    #sidebar {
+      position: fixed;
+      top: 0; left: 0; bottom: 0;
+      width: 256px;
+      background: #f8f9fa;
+      border-right: 1px solid #e0e0e0;
+      overflow-y: auto;
+      z-index: 100;
+      display: flex;
+      flex-direction: column;
+    }
+    #sidebar-header {
+      padding: 24px 16px 16px;
+      border-bottom: 1px solid #e0e0e0;
+    }
+    #sidebar-header h1 {
+      font-size: 14px;
+      font-weight: 600;
+      color: #1a73e8;
+      line-height: 1.4;
+    }
+    #sidebar-header p {
+      font-size: 12px;
+      color: #5f6368;
+      margin-top: 4px;
+    }
+    #steps-nav { padding: 8px 0; flex: 1; }
+    .step-nav-item {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      padding: 10px 16px;
+      cursor: pointer;
+      transition: background .15s;
+      text-decoration: none;
+      color: #202124;
+      font-size: 13px;
+      line-height: 1.4;
+      border-left: 3px solid transparent;
+    }
+    .step-nav-item:hover { background: #e8f0fe; }
+    .step-nav-item.active {
+      background: #e8f0fe;
+      border-left-color: #1a73e8;
+      color: #1a73e8;
+      font-weight: 600;
+    }
+    .step-nav-item.done { color: #34a853; }
+    .step-nav-item.done .step-num {
+      background: #34a853;
+      color: #fff;
+    }
+    .step-num {
+      min-width: 24px;
+      height: 24px;
+      border-radius: 50%;
+      background: #dadce0;
+      color: #5f6368;
+      font-size: 11px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    .step-nav-item.active .step-num {
+      background: #1a73e8;
+      color: #fff;
+    }
+
+    /* ── Main content ── */
+    #main {
+      margin-left: 256px;
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+    }
+    #top-bar {
+      position: sticky;
+      top: 0;
+      background: #fff;
+      border-bottom: 1px solid #e0e0e0;
+      padding: 12px 40px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      z-index: 90;
+    }
+    #top-bar h2 { font-size: 14px; color: #5f6368; font-weight: 400; }
+    .duration-badge {
+      font-size: 12px;
+      color: #5f6368;
+      background: #f1f3f4;
+      padding: 4px 10px;
+      border-radius: 12px;
+    }
+
+    /* Progress bar */
+    #progress-bar-wrap {
+      height: 4px;
+      background: #e0e0e0;
+      position: sticky;
+      top: 49px;
+      z-index: 89;
+    }
+    #progress-bar {
+      height: 100%;
+      background: #1a73e8;
+      transition: width .3s ease;
+    }
+
+    /* Step pages */
+    .step-page {
+      display: none;
+      padding: 40px 60px 80px;
+      max-width: 860px;
+    }
+    .step-page.active { display: block; }
+
+    .step-page h2 {
+      font-size: 28px;
+      font-weight: 400;
+      color: #202124;
+      margin-bottom: 8px;
+    }
+    .step-meta {
+      font-size: 12px;
+      color: #5f6368;
+      margin-bottom: 32px;
+      display: flex;
+      gap: 16px;
+    }
+    .step-meta span { display: flex; align-items: center; gap: 4px; }
+
+    .step-page h3 {
+      font-size: 20px;
+      font-weight: 500;
+      color: #202124;
+      margin: 32px 0 12px;
+    }
+    .step-page h4 {
+      font-size: 16px;
+      font-weight: 600;
+      color: #202124;
+      margin: 24px 0 8px;
+    }
+    .step-page p { font-size: 15px; line-height: 1.7; margin-bottom: 12px; color: #3c4043; }
+    .step-page ul, .step-page ol {
+      padding-left: 24px;
+      margin-bottom: 16px;
+    }
+    .step-page li { font-size: 15px; line-height: 1.7; color: #3c4043; margin-bottom: 4px; }
+
+    /* Code blocks */
+    pre {
+      background: #1e1e2e;
+      color: #cdd6f4;
+      border-radius: 8px;
+      padding: 20px 24px;
+      overflow-x: auto;
+      font-size: 13px;
+      line-height: 1.65;
+      margin: 16px 0;
+      position: relative;
+    }
+    pre .filename {
+      position: absolute;
+      top: 8px; right: 12px;
+      font-size: 11px;
+      color: #6c7086;
+      font-family: monospace;
+    }
+    code {
+      font-family: "Roboto Mono", "Courier New", monospace;
+    }
+    p code, li code {
+      background: #f1f3f4;
+      color: #d32f2f;
+      border-radius: 4px;
+      padding: 2px 6px;
+      font-size: 13px;
+    }
+
+    /* Syntax highlight tokens */
+    .kw  { color: #cba6f7; }   /* keywords */
+    .fn  { color: #89b4fa; }   /* functions */
+    .str { color: #a6e3a1; }   /* strings */
+    .cmt { color: #6c7086; font-style: italic; } /* comments */
+    .num { color: #fab387; }   /* numbers */
+    .ann { color: #f38ba8; }   /* annotations */
+    .cls { color: #f9e2af; }   /* class names */
+    .pk  { color: #94e2d5; }   /* package/import */
+
+    /* Info / warning boxes */
+    aside {
+      border-left: 4px solid;
+      border-radius: 0 8px 8px 0;
+      padding: 16px 20px;
+      margin: 24px 0;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    aside.info    { border-color: #1a73e8; background: #e8f0fe; }
+    aside.success { border-color: #34a853; background: #e6f4ea; }
+    aside.warning { border-color: #fbbc04; background: #fef7e0; }
+    aside.danger  { border-color: #ea4335; background: #fce8e6; }
+    aside strong  { display: block; margin-bottom: 4px; font-size: 13px; text-transform: uppercase; letter-spacing: .5px; }
+    aside.info strong    { color: #1a73e8; }
+    aside.success strong { color: #34a853; }
+    aside.warning strong { color: #e37400; }
+    aside.danger strong  { color: #ea4335; }
+
+    /* Architecture diagram */
+    .arch-diagram {
+      background: #f8f9fa;
+      border: 1px solid #e0e0e0;
+      border-radius: 8px;
+      padding: 24px;
+      margin: 20px 0;
+      font-family: monospace;
+      font-size: 13px;
+      line-height: 1.8;
+      color: #3c4043;
+    }
+    .arch-layer {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      margin: 4px 0;
+    }
+    .arch-box {
+      background: #1a73e8;
+      color: #fff;
+      padding: 6px 16px;
+      border-radius: 6px;
+      font-size: 12px;
+      font-weight: 600;
+      white-space: nowrap;
+    }
+    .arch-box.green { background: #34a853; }
+    .arch-box.yellow { background: #f29900; }
+    .arch-box.red { background: #ea4335; }
+    .arch-arrow { color: #9aa0a6; font-size: 18px; }
+
+    /* Pill tags */
+    .tag {
+      display: inline-block;
+      padding: 3px 10px;
+      border-radius: 12px;
+      font-size: 12px;
+      font-weight: 600;
+      margin: 2px;
+    }
+    .tag-blue  { background: #e8f0fe; color: #1a73e8; }
+    .tag-green { background: #e6f4ea; color: #137333; }
+    .tag-red   { background: #fce8e6; color: #c5221f; }
+
+    /* What you'll learn grid */
+    .learn-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+      margin: 16px 0;
+    }
+    .learn-item {
+      background: #f8f9fa;
+      border-radius: 8px;
+      padding: 14px 16px;
+      font-size: 13px;
+      color: #3c4043;
+      line-height: 1.5;
+      border-left: 3px solid #1a73e8;
+    }
+    .learn-item strong { display: block; color: #202124; font-size: 13px; margin-bottom: 2px; }
+
+    /* Table */
+    table {
+      width: 100%;
+      border-collapse: collapse;
+      margin: 16px 0;
+      font-size: 14px;
+    }
+    th {
+      background: #1a73e8;
+      color: #fff;
+      padding: 10px 14px;
+      text-align: left;
+      font-weight: 600;
+    }
+    td { padding: 10px 14px; border-bottom: 1px solid #e0e0e0; }
+    tr:last-child td { border-bottom: none; }
+    tr:nth-child(even) td { background: #f8f9fa; }
+
+    /* Navigation buttons */
+    .step-nav-buttons {
+      display: flex;
+      justify-content: space-between;
+      margin-top: 56px;
+      padding-top: 24px;
+      border-top: 1px solid #e0e0e0;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 24px;
+      border-radius: 4px;
+      font-size: 14px;
+      font-weight: 600;
+      cursor: pointer;
+      transition: box-shadow .15s, background .15s;
+      border: none;
+      text-decoration: none;
+    }
+    .btn-primary {
+      background: #1a73e8;
+      color: #fff;
+    }
+    .btn-primary:hover { background: #1557b0; box-shadow: 0 2px 8px rgba(26,115,232,.4); }
+    .btn-secondary {
+      background: #fff;
+      color: #1a73e8;
+      border: 1px solid #dadce0;
+    }
+    .btn-secondary:hover { background: #f8f9fa; }
+    .btn[disabled] { opacity: .4; pointer-events: none; }
+
+    /* Congratulations step */
+    .congrats-hero {
+      text-align: center;
+      padding: 40px 0 32px;
+    }
+    .congrats-hero .trophy { font-size: 72px; margin-bottom: 16px; }
+    .congrats-hero h2 { font-size: 32px !important; color: #34a853 !important; }
+
+    /* Mobile */
+    @media (max-width: 768px) {
+      #sidebar { transform: translateX(-100%); transition: transform .25s; }
+      #sidebar.open { transform: translateX(0); }
+      #main { margin-left: 0; }
+      .step-page { padding: 24px 20px 60px; }
+      .learn-grid { grid-template-columns: 1fr; }
+      #top-bar { padding: 12px 20px; }
+      #menu-toggle { display: flex !important; }
+    }
+    #menu-toggle {
+      display: none;
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 4px;
+      font-size: 24px;
+      color: #5f6368;
+    }
+
+    hr { border: none; border-top: 1px solid #e0e0e0; margin: 32px 0; }
+  </style>
+</head>
+<body>
+
+<!-- ══════════════════════════════════════════════
+     SIDEBAR
+══════════════════════════════════════════════ -->
+<nav id="sidebar">
+  <div id="sidebar-header">
+    <h1>Codelab IA On-Device, Gemma 4 en Android</h1>
+    <p>IA privada 100% offline · Sin API keys</p>
+  </div>
+  <div id="steps-nav">
+    <a class="step-nav-item active" data-step="0" href="#">
+      <span class="step-num">1</span>Introducción
+    </a>
+    <a class="step-nav-item" data-step="1" href="#">
+      <span class="step-num">2</span>Configuración del entorno
+    </a>
+    <a class="step-nav-item" data-step="2" href="#">
+      <span class="step-num">3</span>El problema: IA sin servidor
+    </a>
+    <a class="step-nav-item" data-step="3" href="#">
+      <span class="step-num">4</span>Descarga el modelo Gemma 4 E2B
+    </a>
+    <a class="step-nav-item" data-step="4" href="#">
+      <span class="step-num">5</span>Configura el proyecto Android
+    </a>
+    <a class="step-nav-item" data-step="5" href="#">
+      <span class="step-num">6</span>Copia el modelo al almacenamiento
+    </a>
+    <a class="step-nav-item" data-step="6" href="#">
+      <span class="step-num">7</span>Interfaz del motor de inferencia
+    </a>
+    <a class="step-nav-item" data-step="7" href="#">
+      <span class="step-num">8</span>LiteRtInferenceEngine
+    </a>
+    <a class="step-nav-item" data-step="8" href="#">
+      <span class="step-num">9</span>Repositorio de inventario
+    </a>
+    <a class="step-nav-item" data-step="9" href="#">
+      <span class="step-num">10</span>Dominio y estado
+    </a>
+    <a class="step-nav-item" data-step="10" href="#">
+      <span class="step-num">11</span>ViewModel
+    </a>
+    <a class="step-nav-item" data-step="11" href="#">
+      <span class="step-num">12</span>UI con Jetpack Compose
+    </a>
+    <a class="step-nav-item" data-step="12" href="#">
+      <span class="step-num">13</span>Conecta MainActivity
+    </a>
+    <a class="step-nav-item" data-step="13" href="#">
+      <span class="step-num">14</span>Ejecuta y prueba la app
+    </a>
+    <a class="step-nav-item" data-step="14" href="#">
+      <span class="step-num">15</span>¡Felicidades!
+    </a>
+  </div>
+</nav>
+
+<!-- ══════════════════════════════════════════════
+     MAIN
+══════════════════════════════════════════════ -->
+<div id="main">
+  <div id="top-bar">
+    <button id="menu-toggle">☰</button>
+    <h2 id="top-bar-title">Introducción</h2>
+    <span class="duration-badge" id="step-duration">⏱ 5 min</span>
+  </div>
+  <div id="progress-bar-wrap">
+    <div id="progress-bar" style="width: 7%;"></div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 0 — Introducción
+  ───────────────────────────────────────── -->
+  <div class="step-page active" id="step-0">
+    <h2>Codelab IA On-Device, Gemma 4 en Android</h2>
+    <div class="step-meta">
+      <span>📅 Última actualización: mayo 2026</span>
+      <span>⏱ Duración estimada: ~60 min</span>
+    </div>
+
+    <p>
+      En este codelab construirás <strong>Validia</strong>, una app de inventario inteligente
+      para Android que corre completamente <em>offline</em>. El usuario pega texto del proveedor
+      en lenguaje natural (ej. "12 Coca-Cola y 6 Ala detergente") y <strong>Gemma 4 E2B</strong>
+      extrae, clasifica y estructura los productos como JSON — sin internet, sin servidor, sin API key.
+    </p>
+
+    <div style="text-align:center; margin: 28px 0;">
+      <div style="display:inline-block; background:#1e1e2e; border-radius:12px; padding:20px 32px; color:#cdd6f4; font-family:monospace; font-size:13px; text-align:left; line-height:1.8;">
+        📝 Input: <span style="color:#a6e3a1">"12 Cokes, 4 Taragüi 500g, 2 Ala detergente"</span><br>
+        🤖 Gemma 4 E2B → JSON<br>
+        📦 Output: <span style="color:#89b4fa">[{qty:12, Coca-Cola, Beverages}, ...]</span><br>
+        🔒 <span style="color:#f38ba8">100% local · 0 requests de red</span>
+      </div>
+    </div>
+
+    <h3>¿Qué aprenderás?</h3>
+    <div class="learn-grid">
+      <div class="learn-item">
+        <strong>LiteRT-LM SDK</strong>
+        Integrar el SDK nativo de Google AI Edge para modelos <code>.litertlm</code>
+      </div>
+      <div class="learn-item">
+        <strong>Gemma 4 E2B</strong>
+        Cargar y usar el modelo Gemma 4 de 2B parámetros optimizado para edge
+      </div>
+      <div class="learn-item">
+        <strong>Inferencia on-device</strong>
+        Ejecutar LLMs localmente en Android usando CPU, GPU o NPU
+      </div>
+      <div class="learn-item">
+        <strong>Arquitectura limpia</strong>
+        Separar engine, repositorio, ViewModel y UI con capas bien definidas
+      </div>
+      <div class="learn-item">
+        <strong>Few-shot prompting</strong>
+        Diseñar un prompt de sistema robusto que produce JSON estructurado
+      </div>
+      <div class="learn-item">
+        <strong>Jetpack Compose</strong>
+        Construir la UI reactiva con estados de carga, resultados y errores
+      </div>
+    </div>
+
+    <h3>¿Qué necesitas?</h3>
+    <ul>
+      <li>Android Studio Meerkat o superior</li>
+      <li>Dispositivo o emulador Android 8.0+ (API 26+) con arquitectura 64-bit</li>
+      <li>~3 GB de espacio libre en el dispositivo</li>
+      <li>4 GB de RAM en el dispositivo</li>
+      <li>Conexión a internet para descargar el modelo (~2.4 GB) — solo una vez</li>
+      <li>Conocimientos básicos de Kotlin y Android</li>
+    </ul>
+
+    <aside class="info">
+      <strong>Nota</strong>
+      El modelo <code>gemma-4-E2B-it.litertlm</code> pesa ~2.4 GB.
+      La primera vez que la app inicia lo copia de <code>assets/</code> al almacenamiento
+      interno (20–60 seg). Las siguientes aperturas son instantáneas.
+    </aside>
+
+    <h3>Arquitectura final</h3>
+    <div class="arch-diagram">
+      <div class="arch-layer">
+        <div class="arch-box" style="background:#7c3aed">UI / Compose</div>
+        <span class="arch-arrow">→</span>
+        <span>SmartInventoryScreen · CategoryChip · DebugPanel</span>
+      </div>
+      <div style="margin-left:8px; color:#9aa0a6">↑↓ StateFlow</div>
+      <div class="arch-layer">
+        <div class="arch-box" style="background:#0369a1">ViewModel</div>
+        <span class="arch-arrow">→</span>
+        <span>InventoryViewModel · InventoryUiState · DebugState</span>
+      </div>
+      <div style="margin-left:8px; color:#9aa0a6">↑↓ suspend fun</div>
+      <div class="arch-layer">
+        <div class="arch-box" style="background:#047857">Repository</div>
+        <span class="arch-arrow">→</span>
+        <span>LocalInventoryRepository · System Prompt · JSON parsing</span>
+      </div>
+      <div style="margin-left:8px; color:#9aa0a6">↑↓ interface</div>
+      <div class="arch-layer">
+        <div class="arch-box" style="background:#b45309">Engine</div>
+        <span class="arch-arrow">→</span>
+        <span>LiteRtInferenceEngine · LiteRT-LM 0.10.0 · Gemma 4 E2B</span>
+      </div>
+      <div style="margin-left:8px; color:#9aa0a6">↑↓</div>
+      <div class="arch-layer">
+        <div class="arch-box" style="background:#9f1239">Model</div>
+        <span class="arch-arrow">→</span>
+        <span>gemma-4-E2B-it.litertlm (~2.4 GB) en filesDir</span>
+      </div>
+    </div>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)" disabled>← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 1 — Configuración del entorno
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-1">
+    <h2>Configuración del entorno</h2>
+    <div class="step-meta">
+      <span>⏱ 5 min</span>
+    </div>
+
+    <h3>Android Studio</h3>
+    <p>
+      Descarga e instala <strong>Android Studio Meerkat (2024.3.1)</strong> o superior desde
+      <code>developer.android.com/studio</code>.
+    </p>
+    <p>Durante la instalación asegúrate de tener:</p>
+    <ul>
+      <li>Android SDK Platform 36 (o el más reciente disponible)</li>
+      <li>Android Emulator (si no tienes dispositivo físico)</li>
+      <li>SDK Build Tools 34+</li>
+    </ul>
+
+    <aside class="warning">
+      <strong>Dispositivo físico recomendado</strong>
+      Los modelos LLM on-device tienen un rendimiento significativamente mejor en hardware real.
+      En emulador la inferencia puede tardar varios minutos por consulta.
+    </aside>
+
+    <h3>Requisitos mínimos del dispositivo</h3>
+    <table>
+      <tr><th>Requisito</th><th>Mínimo</th><th>Recomendado</th></tr>
+      <tr><td>Android</td><td>8.0 (API 24)</td><td>12+ (API 31+)</td></tr>
+      <tr><td>Arquitectura</td><td>arm64-v8a o x86_64</td><td>arm64-v8a (con GPU)</td></tr>
+      <tr><td>RAM</td><td>4 GB</td><td>6-8 GB</td></tr>
+      <tr><td>Almacenamiento libre</td><td>3 GB</td><td>4 GB+</td></tr>
+      <tr><td>Backend IA</td><td>CPU</td><td>GPU / NPU</td></tr>
+    </table>
+
+    <h3>Clona el repositorio</h3>
+    <pre><code>git clone https://github.com/camachoyury/validia.git
+cd validia</code></pre>
+
+    <aside class="info">
+      <strong>Importante</strong>
+      El archivo <code>gemma-4-E2B-it.litertlm</code> <strong>no está incluido</strong> en el
+      repositorio por su tamaño (~2.4 GB). Lo descargarás en el paso 4.
+    </aside>
+
+    <h3>Abre el proyecto</h3>
+    <ol>
+      <li>Abre Android Studio</li>
+      <li>Selecciona <strong>Open</strong> → navega hasta la carpeta <code>validia/</code></li>
+      <li>Espera a que Gradle sincronice (puede tardar unos minutos la primera vez)</li>
+      <li>Verifica que no haya errores de sincronización en la barra inferior</li>
+    </ol>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 2 — El problema
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-2">
+    <h2>El problema: IA en Android sin servidor</h2>
+    <div class="step-meta">
+      <span>⏱ 5 min</span>
+    </div>
+
+    <h3>El caso de uso</h3>
+    <p>
+      Imagina una pequeña tienda o depósito donde el proveedor entrega un texto informal:
+      <em>"Recibí 24 Coca-Cola 600ml, 6 bolsas de Lay's y 4 Ala detergente"</em>.
+      El objetivo es convertir ese texto desestructurado en un inventario ordenado
+      — automáticamente, sin conexión a internet.
+    </p>
+    <p>
+      La solución obvia sería llamar a una API como Gemini o GPT-4. Pero eso introduce:
+    </p>
+    <ul>
+      <li>Dependencia de red (sin internet = sin funcionalidad)</li>
+      <li>Latencia de round-trip (0.5–3 seg por consulta)</li>
+      <li>Costos por token en producción</li>
+      <li>Datos del negocio enviados a servidores externos (privacidad)</li>
+    </ul>
+
+    <p>
+      La alternativa es correr el modelo <strong>localmente en el dispositivo</strong>.
+      Esto es posible hoy gracias a los modelos edge como <strong>Gemma 4 E2B</strong>
+      (2 mil millones de parámetros, optimizado para inferencia móvil).
+    </p>
+
+    <h3>¿Por qué LiteRT-LM y no MediaPipe?</h3>
+    <p>
+      El formato <code>.litertlm</code> es el formato nativo de Google AI Edge.
+      Al inicio del proyecto se evaluó MediaPipe Tasks GenAI, pero presentaba varios problemas
+      con este formato de modelo:
+    </p>
+
+    <table>
+      <tr>
+        <th>Aspecto</th>
+        <th>MediaPipe 0.10.33 + .litertlm</th>
+        <th>LiteRT-LM 0.10.0 ✅</th>
+      </tr>
+      <tr>
+        <td>Chat template</td>
+        <td>Manual (start_of_turn, end_of_turn)</td>
+        <td>Automático via <code>ConversationConfig</code></td>
+      </tr>
+      <tr>
+        <td>Token EOS</td>
+        <td>No reconocido → early-stop manual</td>
+        <td>Reconocido nativamente</td>
+      </tr>
+      <tr>
+        <td>API de streaming</td>
+        <td>Callbacks + futures</td>
+        <td>Kotlin <code>Flow&lt;Message&gt;</code> nativo</td>
+      </tr>
+      <tr>
+        <td>GPU / NPU</td>
+        <td>Limitado</td>
+        <td>Backend.GPU() / Backend.NPU()</td>
+      </tr>
+      <tr>
+        <td>Gestión de recursos</td>
+        <td>Compleja (close en future.addListener)</td>
+        <td>Simple: <code>use {}</code> / AutoCloseable</td>
+      </tr>
+    </table>
+
+    <aside class="success">
+      <strong>Decisión de arquitectura</strong>
+      Usar <code>com.google.ai.edge.litertlm:litertlm-android:0.10.0</code> simplifica
+      enormemente el código: sin templates manuales, sin early-stop, sin manejo de futures.
+      El SDK maneja el formato Gemma IT internamente.
+    </aside>
+
+    <h3>Flujo de datos</h3>
+    <pre><code>Usuario escribe texto
+  ↓
+InventoryViewModel.processText(rawText)
+  ↓
+LocalInventoryRepository.parseInventoryText(rawText)
+  ↓ system prompt + user input
+LiteRtInferenceEngine.generate()
+  ↓ Flow&lt;Message&gt; (streaming tokens)
+  ↓ JSON array como String
+extractCleanJsonArray()
+  ↓
+Json.decodeFromString&lt;List&lt;InventoryItem&gt;&gt;()
+  ↓
+UI muestra las tarjetas con los productos</code></pre>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 3 — Descarga el modelo
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-3">
+    <h2>Descarga el modelo Gemma 4 E2B</h2>
+    <div class="step-meta">
+      <span>⏱ 10 min (depende de tu conexión)</span>
+    </div>
+
+    <h3>¿Qué es Gemma 4 E2B?</h3>
+    <p>
+      <strong>Gemma 4 E2B</strong> es una variante de Gemma 4 con 2 mil millones de parámetros
+      ("E2B" = Edge 2B), optimizada específicamente para inferencia en dispositivos móviles y edge.
+      El formato <code>.litertlm</code> es el formato binario nativo del runtime LiteRT de Google.
+    </p>
+    <ul>
+      <li>Tamaño del archivo: ~2.4 GB</li>
+      <li>Formato: <code>.litertlm</code> (cuantizado, optimizado para ARM)</li>
+      <li>Variante: Instruction-tuned (<code>-it</code>): entrenado para seguir instrucciones</li>
+    </ul>
+
+    <aside class="warning">
+      <strong>Acepta los términos de uso</strong>
+      Debes aceptar la licencia de Gemma en Hugging Face antes de poder descargar el modelo.
+      Necesitas una cuenta de Hugging Face.
+    </aside>
+
+    <h3>Pasos para descargar</h3>
+    <ol>
+      <li>
+        Ve a <code>https://huggingface.co/litert-community/Gemma4-4B-IT</code>
+      </li>
+      <li>Inicia sesión o crea una cuenta en Hugging Face</li>
+      <li>Acepta los términos de uso del modelo Gemma</li>
+      <li>
+        Descarga el archivo <code>gemma-4-E2B-it.litertlm</code>
+        (busca la pestaña <strong>Files and versions</strong>)
+      </li>
+    </ol>
+
+    <h3>Opción alternativa: Hugging Face CLI</h3>
+    <pre><code>pip install huggingface_hub
+huggingface-cli download litert-community/Gemma4-4B-IT \
+    gemma-4-E2B-it.litertlm \
+    --local-dir ./model</code></pre>
+
+    <h3>Coloca el modelo en el proyecto</h3>
+    <p>
+      Una vez descargado, mueve el archivo a la carpeta <code>assets/</code> del módulo app:
+    </p>
+    <pre><code>app/
+└── src/
+    └── main/
+        └── assets/
+            └── gemma-4-E2B-it.litertlm   ← aquí</code></pre>
+
+    <aside class="danger">
+      <strong>Nunca subas el modelo a Git</strong>
+      El archivo pesa ~2.4 GB. Agrega la siguiente línea a tu <code>.gitignore</code>
+      para evitar comitearlo accidentalmente:
+      <br><br>
+      <code>app/src/main/assets/*.litertlm</code>
+    </aside>
+
+    <h3>¿Por qué en assets y no descargado en runtime?</h3>
+    <p>
+      El modelo se empaqueta en <code>assets/</code> para garantizar disponibilidad
+      <strong>completamente offline</strong> desde el primer uso. No depende de servidores externos,
+      play store feature delivery ni conexión de red en ningún momento.
+      La app lo copia a <code>filesDir</code> en el primer inicio (paso 6).
+    </p>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 4 — Configura el proyecto
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-4">
+    <h2>Configura el proyecto Android</h2>
+    <div class="step-meta">
+      <span>⏱ 10 min</span>
+    </div>
+
+    <h3>gradle/libs.versions.toml</h3>
+    <p>
+      El proyecto usa el catálogo de versiones de Gradle (Version Catalog) para centralizar
+      todas las dependencias. Crea o edita el archivo <code>gradle/libs.versions.toml</code>:
+    </p>
+    <pre><code><span class="cmt"># gradle/libs.versions.toml</span>
+[versions]
+agp                    = <span class="str">"9.1.0"</span>
+kotlin                 = <span class="str">"2.2.10"</span>
+coreKtx                = <span class="str">"1.10.1"</span>
+lifecycleRuntimeKtx    = <span class="str">"2.6.1"</span>
+lifecycleViewmodelKtx  = <span class="str">"2.8.4"</span>
+activityCompose        = <span class="str">"1.8.0"</span>
+composeBom             = <span class="str">"2026.02.01"</span>
+kotlinxSerializationJson = <span class="str">"1.7.1"</span>
+liteRtLmAndroid        = <span class="str">"0.10.0"</span>   <span class="cmt"># ← SDK clave</span>
+
+[libraries]
+androidx-core-ktx                = { group = <span class="str">"androidx.core"</span>, name = <span class="str">"core-ktx"</span>, version.ref = <span class="str">"coreKtx"</span> }
+androidx-lifecycle-runtime-ktx   = { group = <span class="str">"androidx.lifecycle"</span>, name = <span class="str">"lifecycle-runtime-ktx"</span>, version.ref = <span class="str">"lifecycleRuntimeKtx"</span> }
+androidx-lifecycle-viewmodel-ktx  = { group = <span class="str">"androidx.lifecycle"</span>, name = <span class="str">"lifecycle-viewmodel-ktx"</span>, version.ref = <span class="str">"lifecycleViewmodelKtx"</span> }
+androidx-lifecycle-runtime-compose = { group = <span class="str">"androidx.lifecycle"</span>, name = <span class="str">"lifecycle-runtime-compose"</span>, version.ref = <span class="str">"lifecycleViewmodelKtx"</span> }
+androidx-activity-compose         = { group = <span class="str">"androidx.activity"</span>, name = <span class="str">"activity-compose"</span>, version.ref = <span class="str">"activityCompose"</span> }
+androidx-compose-bom              = { group = <span class="str">"androidx.compose"</span>, name = <span class="str">"compose-bom"</span>, version.ref = <span class="str">"composeBom"</span> }
+androidx-compose-ui               = { group = <span class="str">"androidx.compose.ui"</span>, name = <span class="str">"ui"</span> }
+androidx-compose-material3        = { group = <span class="str">"androidx.compose.material3"</span>, name = <span class="str">"material3"</span> }
+kotlinx-serialization-json        = { group = <span class="str">"org.jetbrains.kotlinx"</span>, name = <span class="str">"kotlinx-serialization-json"</span>, version.ref = <span class="str">"kotlinxSerializationJson"</span> }
+litert-lm-android                 = { group = <span class="str">"com.google.ai.edge.litertlm"</span>, name = <span class="str">"litertlm-android"</span>, version.ref = <span class="str">"liteRtLmAndroid"</span> }
+
+[plugins]
+android-application  = { id = <span class="str">"com.android.application"</span>, version.ref = <span class="str">"agp"</span> }
+kotlin-compose       = { id = <span class="str">"org.jetbrains.kotlin.plugin.compose"</span>, version.ref = <span class="str">"kotlin"</span> }
+kotlin-serialization = { id = <span class="str">"org.jetbrains.kotlin.plugin.serialization"</span>, version.ref = <span class="str">"kotlin"</span> }</code><span class="filename">gradle/libs.versions.toml</span></pre>
+
+    <h3>app/build.gradle.kts</h3>
+    <p>Configura el módulo app con los plugins, SDK y dependencias necesarias:</p>
+    <pre><code><span class="fn">plugins</span> {
+    <span class="fn">alias</span>(libs.plugins.android.application)
+    <span class="fn">alias</span>(libs.plugins.kotlin.compose)
+    <span class="fn">alias</span>(libs.plugins.kotlin.serialization) <span class="cmt">// para kotlinx.serialization</span>
+}
+
+<span class="fn">android</span> {
+    namespace = <span class="str">"com.camachoyury.validia"</span>
+    compileSdk = <span class="num">36</span>
+
+    defaultConfig {
+        applicationId = <span class="str">"com.camachoyury.validia"</span>
+        minSdk = <span class="num">24</span>
+        targetSdk = <span class="num">36</span>
+        versionCode = <span class="num">1</span>
+        versionName = <span class="str">"1.0"</span>
+
+        <span class="cmt">// ⚠️ LiteRT-LM requiere ABI de 64 bits</span>
+        ndk {
+            abiFilters += <span class="fn">listOf</span>(<span class="str">"arm64-v8a"</span>, <span class="str">"x86_64"</span>)
+        }
+    }
+
+    buildFeatures { compose = <span class="kw">true</span> }
+
+    <span class="cmt">// Evita doble compresión del modelo dentro del APK</span>
+    androidResources {
+        noCompress += <span class="str">"litertlm"</span>
+    }
+}
+
+<span class="fn">dependencies</span> {
+    implementation(libs.androidx.core.ktx)
+    implementation(libs.androidx.lifecycle.runtime.ktx)
+    implementation(libs.androidx.lifecycle.viewmodel.ktx)
+    implementation(libs.androidx.lifecycle.runtime.compose)
+    implementation(libs.androidx.activity.compose)
+    implementation(<span class="fn">platform</span>(libs.androidx.compose.bom))
+    implementation(libs.androidx.compose.ui)
+    implementation(libs.androidx.compose.material3)
+    implementation(libs.kotlinx.serialization.json)
+
+    <span class="cmt">// ← La dependencia clave: LiteRT-LM para modelos .litertlm</span>
+    implementation(libs.litert.lm.android)
+}</code><span class="filename">app/build.gradle.kts</span></pre>
+
+    <aside class="info">
+      <strong>¿Por qué abiFilters?</strong>
+      El SDK LiteRT-LM incluye librerías nativas (.so) que solo están disponibles en
+      arquitecturas de 64 bits. Agregar <code>abiFilters</code> evita que la app intente
+      instalarse en dispositivos de 32 bits donde fallaría en runtime.
+    </aside>
+
+    <aside class="info">
+      <strong>¿Por qué noCompress += "litertlm"?</strong>
+      Los archivos <code>.litertlm</code> ya están internamente comprimidos y optimizados.
+      Comprimirlos de nuevo en el APK desperdiciaría espacio y ralentizaría la extracción.
+      Esta configuración también permite acceso por memory-mapping en futuras versiones del SDK.
+    </aside>
+
+    <p>Sincroniza Gradle (<strong>Sync Now</strong> en la barra amarilla de Android Studio).</p>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 5 — ModelCopier
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-5">
+    <h2>Copia el modelo al almacenamiento interno</h2>
+    <div class="step-meta">
+      <span>⏱ 5 min</span>
+    </div>
+
+    <h3>¿Por qué necesitamos copiar el modelo?</h3>
+    <p>
+      El SDK de LiteRT-LM (<code>Engine</code>) requiere una <strong>ruta absoluta</strong> en
+      el sistema de archivos del dispositivo. Los assets de Android no tienen una ruta física
+      accesible directamente — solo se pueden abrir como <code>InputStream</code>.
+    </p>
+    <p>
+      La solución es copiar el modelo desde <code>assets/</code> al directorio privado de la app
+      (<code>context.filesDir</code>) la primera vez que se lanza. Las siguientes aperturas
+      detectan que el archivo ya existe y se saltan la copia.
+    </p>
+
+    <p>
+      Crea el archivo <code>data/util/ModelCopier.kt</code>:
+    </p>
+    <pre><code><span class="kw">package</span> <span class="pk">com.camachoyury.validia.data.util</span>
+
+<span class="kw">import</span> <span class="pk">android.content.Context</span>
+<span class="kw">import</span> <span class="pk">kotlinx.coroutines.Dispatchers</span>
+<span class="kw">import</span> <span class="pk">kotlinx.coroutines.withContext</span>
+<span class="kw">import</span> <span class="pk">java.io.File</span>
+<span class="kw">import</span> <span class="pk">java.io.FileOutputStream</span>
+
+<span class="cmt">/**
+ * Copia el modelo Gemma desde assets/ a filesDir.
+ *
+ * Engine de LiteRT-LM necesita una ruta absoluta en el filesystem.
+ * Android assets solo se abren como InputStream, no tienen ruta física.
+ *
+ * Optimizaciones:
+ * - Idempotente: si el archivo ya existe, no copia.
+ * - Buffer de 8 KB: maneja archivos grandes (&gt;1 GB) sin OOM.
+ * - Ejecuta en Dispatchers.IO para no bloquear el main thread.
+ */</span>
+<span class="kw">object</span> <span class="cls">ModelCopier</span> {
+
+    <span class="kw">private const val</span> BUFFER_SIZE = <span class="num">8</span> * <span class="num">1024</span> <span class="cmt">// 8 KB</span>
+
+    <span class="cmt">/**
+     * Copia el asset a filesDir si no existe ya.
+     * @param assetName Nombre del archivo en assets/ (ej: "gemma-4-E2B-it.litertlm")
+     * @return Ruta absoluta del archivo en filesDir.
+     */</span>
+    <span class="kw">suspend fun</span> <span class="fn">ensureModelReady</span>(
+        context: <span class="cls">Context</span>,
+        assetName: <span class="cls">String</span>
+    ): <span class="cls">String</span> = <span class="fn">withContext</span>(<span class="cls">Dispatchers</span>.IO) {
+        <span class="kw">val</span> destFile = <span class="cls">File</span>(context.filesDir, assetName)
+
+        <span class="kw">if</span> (!destFile.<span class="fn">exists</span>()) {
+            context.assets.<span class="fn">open</span>(assetName).<span class="fn">use</span> { input ->
+                <span class="cls">FileOutputStream</span>(destFile).<span class="fn">use</span> { output ->
+                    <span class="kw">val</span> buffer = <span class="cls">ByteArray</span>(BUFFER_SIZE)
+                    <span class="kw">var</span> bytesRead: <span class="cls">Int</span>
+                    <span class="kw">while</span> (input.<span class="fn">read</span>(buffer).<span class="fn">also</span> { bytesRead = it } != -<span class="num">1</span>) {
+                        output.<span class="fn">write</span>(buffer, <span class="num">0</span>, bytesRead)
+                    }
+                    output.<span class="fn">flush</span>()
+                }
+            }
+        }
+
+        destFile.absolutePath
+    }
+}</code><span class="filename">data/util/ModelCopier.kt</span></pre>
+
+    <h3>Puntos clave</h3>
+    <ul>
+      <li>
+        <strong><code>destFile.exists()</code></strong>: la comprobación hace que la copia
+        sea idempotente. El archivo de ~2.4 GB solo se copia una vez en toda la vida de la app.
+      </li>
+      <li>
+        <strong>Buffer de 8 KB</strong>: evita cargar el archivo completo en RAM.
+        Crítico para archivos grandes.
+      </li>
+      <li>
+        <strong><code>withContext(Dispatchers.IO)</code></strong>: la operación de disco se
+        ejecuta en el thread pool de I/O, nunca en el main thread.
+      </li>
+      <li>
+        <strong><code>.use {}</code></strong>: cierra automáticamente los streams, incluso si
+        hay una excepción.
+      </li>
+    </ul>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 6 — LocalInferenceEngine interface
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-6">
+    <h2>Interfaz del motor de inferencia</h2>
+    <div class="step-meta">
+      <span>⏱ 5 min</span>
+    </div>
+
+    <h3>¿Por qué una interfaz?</h3>
+    <p>
+      En lugar de que el repositorio dependa directamente de la implementación de LiteRT,
+      usamos una interfaz <code>LocalInferenceEngine</code>. Esto nos permite:
+    </p>
+    <ul>
+      <li>Intercambiar implementaciones (LiteRT, MediaPipe, stub de testing) sin cambiar el repositorio</li>
+      <li>Hacer unit tests con un <em>fake</em> del engine</li>
+      <li>Aislar el dominio de los detalles del SDK</li>
+    </ul>
+
+    <p>Crea <code>data/ai/LocalInferenceEngine.kt</code>:</p>
+    <pre><code><span class="kw">package</span> <span class="pk">com.camachoyury.validia.data.ai</span>
+
+<span class="cmt">/**
+ * Contrato para el motor de inferencia on-device.
+ *
+ * Implementación activa:
+ *  - [LiteRtInferenceEngine] → litertlm-android:0.10.0
+ *
+ * El engine maneja internamente:
+ *  - El chat template del modelo (system instruction)
+ *  - Tokens EOS (fin de generación nativo)
+ *  - Streaming token a token via Flow&lt;Message&gt;
+ *  - Aceleración GPU / NPU (configurable via Backend)
+ */</span>
+<span class="kw">interface</span> <span class="cls">LocalInferenceEngine</span> {
+
+    <span class="cmt">/**
+     * Inicializa el engine cargando el modelo en memoria.
+     * Operación costosa (~2-8 seg según dispositivo) — siempre en Dispatchers.IO.
+     *
+     * @param modelPath Nombre del asset (.litertlm) o ruta absoluta al archivo.
+     */</span>
+    <span class="kw">suspend fun</span> <span class="fn">initialize</span>(modelPath: <span class="cls">String</span>)
+
+    <span class="cmt">/**
+     * Ejecuta inferencia local con el modelo cargado.
+     *
+     * El SDK maneja el chat template de Gemma IT internamente.
+     * No es necesario construir manualmente &lt;start_of_turn&gt;user...
+     *
+     * @param systemPrompt Instrucciones del modelo (few-shot, reglas, formato).
+     * @param userInput    Texto del usuario a procesar.
+     * @param onToken      Callback invocado por cada chunk de token generado.
+     * @return Texto generado por el modelo (se espera: JSON array).
+     */</span>
+    <span class="kw">suspend fun</span> <span class="fn">generate</span>(
+        systemPrompt: <span class="cls">String</span>,
+        userInput: <span class="cls">String</span>,
+        onToken: (<span class="cls">String</span>) -> <span class="cls">Unit</span> = {}
+    ): <span class="cls">String</span>
+
+    <span class="cmt">/** Libera recursos nativos. Llamar en ViewModel.onCleared(). */</span>
+    <span class="kw">fun</span> <span class="fn">close</span>()
+}</code><span class="filename">data/ai/LocalInferenceEngine.kt</span></pre>
+
+    <h3>Puntos clave del diseño</h3>
+    <ul>
+      <li>
+        <strong><code>initialize</code> y <code>generate</code> son <code>suspend</code></strong>:
+        ambas operaciones son potencialmente largas y deben correr en coroutines, nunca en el main thread.
+      </li>
+      <li>
+        <strong><code>onToken: (String) -> Unit</code></strong>: callback de streaming que el
+        ViewModel usa para actualizar el contador de tokens en tiempo real en la UI.
+      </li>
+      <li>
+        <strong><code>close()</code></strong>: libera la RAM nativa del modelo.
+        Es crítico llamarlo en <code>ViewModel.onCleared()</code> para evitar memory leaks.
+      </li>
+    </ul>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 7 — LiteRtInferenceEngine
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-7">
+    <h2>LiteRtInferenceEngine: implementación con LiteRT-LM</h2>
+    <div class="step-meta">
+      <span>⏱ 10 min</span>
+    </div>
+
+    <p>
+      Esta es la clase central del proyecto. Implementa <code>LocalInferenceEngine</code>
+      usando el SDK <code>litertlm-android:0.10.0</code>.
+    </p>
+    <p>Crea <code>data/ai/LiteRtInferenceEngine.kt</code>:</p>
+
+    <h4>1. Configuración y carga del modelo</h4>
+    <pre><code><span class="kw">class</span> <span class="cls">LiteRtInferenceEngine</span>(
+    <span class="kw">private val</span> context: <span class="cls">Context</span>
+) : <span class="cls">LocalInferenceEngine</span> {
+
+    <span class="kw">private var</span> engine: <span class="cls">Engine</span>? = <span class="kw">null</span>
+
+    <span class="kw">companion object</span> {
+        <span class="kw">const val</span> TAG = <span class="str">"Gemma4Debug"</span>
+
+        <span class="cmt">// temperature=0.1 + topK=1 = máxima determinismo para salidas JSON</span>
+        <span class="kw">private const val</span> TEMPERATURE = <span class="num">0.1</span>
+        <span class="kw">private const val</span> TOP_P       = <span class="num">0.9</span>
+        <span class="kw">private const val</span> TOP_K       = <span class="num">1</span>
+        <span class="kw">private const val</span> SEED        = <span class="num">0</span>
+    }
+
+    <span class="kw">override suspend fun</span> <span class="fn">initialize</span>(modelPath: <span class="cls">String</span>) = <span class="fn">withContext</span>(<span class="cls">Dispatchers</span>.IO) {
+        <span class="kw">val</span> physicalPath = <span class="kw">if</span> (modelPath.<span class="fn">startsWith</span>(<span class="str">"/"</span>)) {
+            modelPath <span class="cmt">// ya es ruta absoluta</span>
+        } <span class="kw">else</span> {
+            <span class="cmt">// Es un nombre de asset → copiar a filesDir primero</span>
+            <span class="cls">ModelCopier</span>.<span class="fn">ensureModelReady</span>(context, modelPath)
+        }
+
+        <span class="kw">val</span> engineConfig = <span class="cls">EngineConfig</span>(
+            modelPath = physicalPath,
+            backend   = <span class="cls">Backend</span>.<span class="fn">CPU</span>(),   <span class="cmt">// CPU: máxima compatibilidad</span>
+            <span class="cmt">// Backend.GPU() → GPU vía OpenCL (Adreno, Mali)</span>
+            <span class="cmt">// Backend.NPU() → NPU vía vendor libs</span>
+            cacheDir  = context.cacheDir.path <span class="cmt">// acelera cargas futuras</span>
+        )
+
+        <span class="kw">val</span> e = <span class="cls">Engine</span>(engineConfig)
+        e.<span class="fn">initialize</span>()
+        engine = e
+    }</code><span class="filename">data/ai/LiteRtInferenceEngine.kt</span></pre>
+
+    <h4>2. Inferencia con Flow nativo</h4>
+    <pre><code>    <span class="kw">override suspend fun</span> <span class="fn">generate</span>(
+        systemPrompt: <span class="cls">String</span>,
+        userInput: <span class="cls">String</span>,
+        onToken: (<span class="cls">String</span>) -> <span class="cls">Unit</span>
+    ): <span class="cls">String</span> = <span class="fn">withContext</span>(<span class="cls">Dispatchers</span>.IO) {
+        <span class="kw">val</span> e = engine ?: <span class="kw">throw</span> <span class="cls">IllegalStateException</span>(<span class="str">"Engine no inicializado."</span>)
+
+        <span class="cmt">// ConversationConfig inyecta el system instruction y parámetros de sampling.
+        // El SDK aplica el chat template correcto para Gemma IT internamente.
+        // No se necesita &lt;start_of_turn&gt;user...&lt;end_of_turn&gt;&lt;start_of_turn&gt;model.</span>
+        <span class="kw">val</span> conversationConfig = <span class="cls">ConversationConfig</span>(
+            systemInstruction = <span class="cls">Contents</span>.<span class="fn">of</span>(systemPrompt),
+            samplerConfig = <span class="cls">SamplerConfig</span>(
+                topK        = TOP_K,
+                topP        = TOP_P,
+                temperature = TEMPERATURE,
+                seed        = SEED
+            )
+        )
+
+        <span class="kw">val</span> accumulated = <span class="cls">StringBuilder</span>()
+
+        <span class="cmt">// createConversation.use {} → cierra recursos automáticamente.
+        // sendMessageAsync → Flow&lt;Message&gt;: cada emisión es un chunk de token.
+        // El Flow termina cuando el modelo emite el token EOS (reconocido nativamente).
+        // No se necesita cancelación manual ni detectar el ']' del JSON.</span>
+        e.<span class="fn">createConversation</span>(conversationConfig).<span class="fn">use</span> { conversation ->
+            conversation
+                .<span class="fn">sendMessageAsync</span>(userInput)
+                .<span class="fn">collect</span> { message ->
+                    <span class="kw">val</span> chunk = message.<span class="fn">toString</span>()
+                    <span class="fn">onToken</span>(chunk)
+                    accumulated.<span class="fn">append</span>(chunk)
+                }
+        }
+
+        accumulated.<span class="fn">toString</span>()
+    }
+
+    <span class="kw">override fun</span> <span class="fn">close</span>() {
+        engine?.<span class="fn">close</span>()
+        engine = <span class="kw">null</span>
+    }
+}</code><span class="filename">data/ai/LiteRtInferenceEngine.kt</span></pre>
+
+    <h3>Parámetros de sampling explicados</h3>
+    <table>
+      <tr><th>Parámetro</th><th>Valor</th><th>Razón</th></tr>
+      <tr><td><code>temperature</code></td><td>0.1</td><td>Salida casi determinista → JSON válido</td></tr>
+      <tr><td><code>topK</code></td><td>1</td><td>Selecciona solo el token más probable (greedy)</td></tr>
+      <tr><td><code>topP</code></td><td>0.9</td><td>Requerido por la API; a efectos prácticos con topK=1 no tiene impacto</td></tr>
+      <tr><td><code>seed</code></td><td>0</td><td>Semilla aleatoria; 0 = aleatorio pero reproducible entre sesiones</td></tr>
+    </table>
+
+    <aside class="info">
+      <strong>Tip: Debug con Logcat</strong>
+      Filtra el tag <code>Gemma4Debug</code> en Logcat para ver:
+      tiempo de carga del modelo, backend en uso, tokens en streaming, respuesta completa
+      y tiempo total de inferencia.
+    </aside>
+
+    <aside class="success">
+      <strong>Habilitar GPU (opcional)</strong>
+      Cambia <code>Backend.CPU()</code> por <code>Backend.GPU()</code> para usar la GPU del
+      dispositivo via OpenCL. Disponible en la mayoría de dispositivos con Adreno o Mali.
+      La inferencia puede ser 3–5× más rápida.
+    </aside>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 8 — LocalInventoryRepository
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-8">
+    <h2>Repositorio de inventario</h2>
+    <div class="step-meta">
+      <span>⏱ 10 min</span>
+    </div>
+
+    <p>
+      El repositorio es el corazón de la lógica de negocio. Se encarga de:
+    </p>
+    <ol>
+      <li>Definir el <strong>system prompt</strong> con few-shot examples</li>
+      <li>Llamar al engine con el prompt y el texto del usuario</li>
+      <li>Extraer el JSON de la respuesta del modelo</li>
+      <li>Parsear el JSON a objetos <code>InventoryItem</code></li>
+    </ol>
+
+    <p>Crea <code>data/litert/LocalInventoryRepository.kt</code>:</p>
+
+    <h4>1. El System Prompt (Few-Shot)</h4>
+    <pre><code><span class="kw">private val</span> systemInstructions = <span class="str">"""
+    You are an inventory assistant for stores and warehouses.
+    Your only job is to extract products from a text and return them as JSON.
+
+    STRICT RULES:
+    - Return ONLY a valid JSON array. No extra text, no markdown.
+    - Each object: "quantity" (Int), "productName" (String), "category" (String).
+    - "category" MUST be one of: "Beverages", "Food" or "Cleaning".
+    - If you cannot classify a product, default to "Food".
+
+    EXAMPLES:
+
+    Input: "got 24 Coca-Cola 20oz and 6 bags of Lay's chips"
+    Output: [{"quantity":24,"productName":"Coca-Cola 20oz","category":"Beverages"},
+             {"quantity":6,"productName":"Lay's Chips","category":"Food"}]
+
+    Input: "order 4 Tide detergent and 3 bottles of vegetable oil"
+    Output: [{"quantity":4,"productName":"Tide Detergent","category":"Cleaning"},
+             {"quantity":3,"productName":"Vegetable Oil","category":"Food"}]
+
+    Now process the following text:
+"""</span>.<span class="fn">trimIndent</span>()</code></pre>
+
+    <aside class="info">
+      <strong>¿Por qué few-shot?</strong>
+      Los modelos instruction-tuned responden mejor cuando ven ejemplos concretos
+      de la transformación esperada. Los dos ejemplos del prompt enseñan al modelo
+      exactamente el formato JSON requerido y cómo clasificar categorías.
+    </aside>
+
+    <h4>2. Inicialización y cierre</h4>
+    <pre><code><span class="kw">class</span> <span class="cls">LocalInventoryRepository</span>(
+    <span class="kw">private val</span> engine: <span class="cls">LocalInferenceEngine</span>
+) {
+    <span class="kw">private val</span> json = <span class="cls">Json</span> {
+        ignoreUnknownKeys = <span class="kw">true</span>
+        isLenient = <span class="kw">true</span>   <span class="cmt">// tolera pequeñas imperfecciones del JSON generado</span>
+    }
+
+    <span class="kw">suspend fun</span> <span class="fn">initializeModel</span>(modelPath: <span class="cls">String</span>) =
+        <span class="fn">withContext</span>(<span class="cls">Dispatchers</span>.IO) { engine.<span class="fn">initialize</span>(modelPath) }
+
+    <span class="kw">fun</span> <span class="fn">closeModel</span>() = engine.<span class="fn">close</span>()
+}</code></pre>
+
+    <h4>3. Inferencia y parseo</h4>
+    <pre><code>    <span class="kw">suspend fun</span> <span class="fn">parseInventoryText</span>(
+        rawText: <span class="cls">String</span>,
+        onToken: (<span class="cls">String</span>) -> <span class="cls">Unit</span> = {}
+    ): <span class="cls">List</span>&lt;<span class="cls">InventoryItem</span>&gt; = <span class="fn">withContext</span>(<span class="cls">Dispatchers</span>.IO) {
+        <span class="fn">require</span>(rawText.<span class="fn">isNotBlank</span>()) { <span class="str">"El texto no puede estar vacío."</span> }
+
+        <span class="kw">val</span> rawResponse = engine.<span class="fn">generate</span>(
+            systemPrompt = systemInstructions,
+            userInput    = rawText,
+            onToken      = onToken
+        )
+
+        <span class="kw">val</span> cleanJson = <span class="fn">extractCleanJsonArray</span>(rawResponse)
+        json.<span class="fn">decodeFromString</span>&lt;<span class="cls">List</span>&lt;<span class="cls">InventoryItem</span>&gt;&gt;(cleanJson)
+    }
+
+    <span class="cmt">/**
+     * Extrae el primer bloque JSON array de la respuesta del modelo.
+     * Encuentra el primer '[' y el último ']', ignorando texto extra
+     * que el modelo pudiera agregar a pesar del prompt estricto.
+     */</span>
+    <span class="kw">private fun</span> <span class="fn">extractCleanJsonArray</span>(rawResponse: <span class="cls">String</span>): <span class="cls">String</span> {
+        <span class="kw">val</span> start = rawResponse.<span class="fn">indexOf</span>(<span class="str">'['</span>)
+        <span class="kw">val</span> end   = rawResponse.<span class="fn">lastIndexOf</span>(<span class="str">']'</span>)
+
+        <span class="kw">if</span> (start == -<span class="num">1</span> || end == -<span class="num">1</span> || end <= start) {
+            <span class="kw">throw</span> <span class="cls">IllegalStateException</span>(
+                <span class="str">"No se encontró JSON array en la respuesta: \"${rawResponse.take(200)}\""</span>
+            )
+        }
+
+        <span class="kw">return</span> rawResponse.<span class="fn">substring</span>(start, end + <span class="num">1</span>)
+    }</code><span class="filename">data/litert/LocalInventoryRepository.kt</span></pre>
+
+    <h3>¿Por qué <code>extractCleanJsonArray</code>?</h3>
+    <p>
+      Los LLMs, incluso con prompts muy estrictos, a veces agregan texto introductorio
+      antes o después del JSON (ej: "Sure! Here's the result:"). Esta función es una red de
+      seguridad que recorta el array JSON limpio de cualquier texto extra.
+    </p>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 9 — Domain & State
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-9">
+    <h2>Dominio y estado</h2>
+    <div class="step-meta">
+      <span>⏱ 5 min</span>
+    </div>
+
+    <h3>InventoryItem — el modelo de dominio</h3>
+    <p>Crea <code>domain/model/InventoryItem.kt</code>:</p>
+    <pre><code><span class="kw">package</span> <span class="pk">com.camachoyury.validia.domain.model</span>
+
+<span class="kw">import</span> <span class="pk">kotlinx.serialization.Serializable</span>
+
+<span class="ann">@Serializable</span>
+<span class="kw">data class</span> <span class="cls">InventoryItem</span>(
+    <span class="kw">val</span> quantity: <span class="cls">Int</span>,
+    <span class="kw">val</span> productName: <span class="cls">String</span>,
+    <span class="kw">val</span> category: <span class="cls">String</span>  <span class="cmt">// "Beverages" | "Food" | "Cleaning"</span>
+)</code><span class="filename">domain/model/InventoryItem.kt</span></pre>
+
+    <p>
+      La anotación <code>@Serializable</code> de <code>kotlinx.serialization</code> permite
+      deserializar directamente el JSON generado por Gemma al data class sin código boilerplate.
+    </p>
+
+    <h3>InventoryUiState — estados de la UI</h3>
+    <p>Crea <code>presentation/inventory/InventoryUiState.kt</code>:</p>
+    <pre><code><span class="kw">sealed interface</span> <span class="cls">InventoryUiState</span> {
+    <span class="cmt">/** Estado inicial antes de cargar el modelo. */</span>
+    <span class="kw">data object</span> <span class="cls">Idle</span> : <span class="cls">InventoryUiState</span>
+
+    <span class="cmt">/** El engine LiteRT está cargando Gemma 4 E2B en memoria. */</span>
+    <span class="kw">data object</span> <span class="cls">InitializingModel</span> : <span class="cls">InventoryUiState</span>
+
+    <span class="cmt">/** Modelo listo en memoria. TextField y botón habilitados. */</span>
+    <span class="kw">data object</span> <span class="cls">Ready</span> : <span class="cls">InventoryUiState</span>
+
+    <span class="cmt">/** LlmInference corriendo inferencia on-device. */</span>
+    <span class="kw">data object</span> <span class="cls">Processing</span> : <span class="cls">InventoryUiState</span>
+
+    <span class="cmt">/** Inferencia exitosa con los items extraídos y clasificados. */</span>
+    <span class="kw">data class</span> <span class="cls">Success</span>(<span class="kw">val</span> items: <span class="cls">List</span>&lt;<span class="cls">InventoryItem</span>&gt;) : <span class="cls">InventoryUiState</span>
+
+    <span class="cmt">/** Error en cualquier punto del flujo (init, inferencia o parseo JSON). */</span>
+    <span class="kw">data class</span> <span class="cls">Error</span>(<span class="kw">val</span> message: <span class="cls">String</span>) : <span class="cls">InventoryUiState</span>
+}</code><span class="filename">presentation/inventory/InventoryUiState.kt</span></pre>
+
+    <h3>DebugState — panel de debug en tiempo real</h3>
+    <p>Crea <code>presentation/inventory/DebugState.kt</code>:</p>
+    <pre><code><span class="kw">data class</span> <span class="cls">DebugState</span>(
+    <span class="kw">val</span> isRunning:   <span class="cls">Boolean</span> = <span class="kw">false</span>,
+    <span class="kw">val</span> tokenCount:  <span class="cls">Int</span>     = <span class="num">0</span>,
+    <span class="kw">val</span> elapsedMs:   <span class="cls">Long</span>    = <span class="num">0L</span>,
+    <span class="kw">val</span> isCompleted: <span class="cls">Boolean</span> = <span class="kw">false</span>
+)</code><span class="filename">presentation/inventory/DebugState.kt</span></pre>
+
+    <p>
+      <code>DebugState</code> alimenta el panel negro al fondo de la pantalla que muestra
+      cuántos tokens generó Gemma y en cuánto tiempo — útil para comparar rendimiento
+      entre backends (CPU vs GPU).
+    </p>
+
+    <h3>Diagrama de estados</h3>
+    <div class="arch-diagram">
+      <strong>App launch</strong>
+      &nbsp;→&nbsp; <span style="color:#f9e2af">Idle</span>
+      &nbsp;→&nbsp; <span style="color:#89b4fa">InitializingModel</span>
+      &nbsp;→&nbsp; <span style="color:#a6e3a1">Ready</span><br><br>
+      <strong>Usuario procesa texto</strong>
+      &nbsp;→&nbsp; <span style="color:#89b4fa">Processing</span>
+      &nbsp;→&nbsp; <span style="color:#a6e3a1">Success(items)</span><br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;↘ <span style="color:#f38ba8">Error(message)</span><br><br>
+      <strong>Usuario presiona "New entry"</strong>
+      &nbsp;→&nbsp; <span style="color:#a6e3a1">Ready</span>
+    </div>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 10 — ViewModel
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-10">
+    <h2>ViewModel</h2>
+    <div class="step-meta">
+      <span>⏱ 5 min</span>
+    </div>
+
+    <p>
+      El <code>InventoryViewModel</code> orquesta el flujo completo: carga del modelo,
+      inferencia, actualización de estado y limpieza de recursos.
+    </p>
+    <p>Crea <code>presentation/inventory/InventoryViewModel.kt</code>:</p>
+
+    <pre><code><span class="kw">class</span> <span class="cls">InventoryViewModel</span>(
+    <span class="kw">private val</span> repository: <span class="cls">LocalInventoryRepository</span>,
+    <span class="kw">private val</span> modelPath: <span class="cls">String</span>
+) : <span class="cls">ViewModel</span>() {
+
+    <span class="kw">private val</span> _uiState    = <span class="cls">MutableStateFlow</span>&lt;<span class="cls">InventoryUiState</span>&gt;(<span class="cls">InventoryUiState</span>.Idle)
+    <span class="kw">val</span> uiState: <span class="cls">StateFlow</span>&lt;<span class="cls">InventoryUiState</span>&gt; = _uiState.<span class="fn">asStateFlow</span>()
+
+    <span class="kw">private val</span> _rawText = <span class="cls">MutableStateFlow</span>(<span class="str">""</span>)
+    <span class="kw">val</span> rawText: <span class="cls">StateFlow</span>&lt;<span class="cls">String</span>&gt; = _rawText.<span class="fn">asStateFlow</span>()
+
+    <span class="kw">private val</span> _debugState = <span class="cls">MutableStateFlow</span>&lt;<span class="cls">DebugState</span>?&gt;(<span class="kw">null</span>)
+    <span class="kw">val</span> debugState: <span class="cls">StateFlow</span>&lt;<span class="cls">DebugState</span>?&gt; = _debugState.<span class="fn">asStateFlow</span>()
+
+    <span class="kw">init</span> { <span class="fn">initializeModel</span>() }  <span class="cmt">// carga el modelo al crear el ViewModel</span>
+
+    <span class="cmt">// ── Carga del engine LiteRT ───────────────────────────────────────</span>
+    <span class="kw">private fun</span> <span class="fn">initializeModel</span>() {
+        viewModelScope.<span class="fn">launch</span> {
+            _uiState.value = <span class="cls">InventoryUiState</span>.InitializingModel
+            <span class="kw">try</span> {
+                repository.<span class="fn">initializeModel</span>(modelPath)
+                _uiState.value = <span class="cls">InventoryUiState</span>.Ready
+            } <span class="kw">catch</span> (e: <span class="cls">Exception</span>) {
+                _uiState.value = <span class="cls">InventoryUiState</span>.<span class="fn">Error</span>(e.message ?: <span class="str">"Error al cargar el modelo"</span>)
+            }
+        }
+    }
+
+    <span class="kw">fun</span> <span class="fn">retryInitialization</span>() = <span class="fn">initializeModel</span>()
+
+    <span class="cmt">// ── Inferencia on-device ──────────────────────────────────────────</span>
+    <span class="kw">fun</span> <span class="fn">processText</span>(rawText: <span class="cls">String</span>) {
+        viewModelScope.<span class="fn">launch</span> {
+            _uiState.value = <span class="cls">InventoryUiState</span>.Processing
+            <span class="kw">val</span> startMs = <span class="cls">SystemClock</span>.<span class="fn">elapsedRealtime</span>()
+            _debugState.value = <span class="cls">DebugState</span>(isRunning = <span class="kw">true</span>)
+
+            <span class="kw">try</span> {
+                <span class="kw">val</span> items = repository.<span class="fn">parseInventoryText</span>(rawText) { _ ->
+                    <span class="cmt">// Actualiza el debug panel con cada token recibido</span>
+                    <span class="kw">val</span> current = _debugState.value ?: <span class="cls">DebugState</span>()
+                    _debugState.value = current.<span class="fn">copy</span>(
+                        tokenCount = current.tokenCount + <span class="num">1</span>,
+                        elapsedMs  = <span class="cls">SystemClock</span>.<span class="fn">elapsedRealtime</span>() - startMs
+                    )
+                }
+
+                <span class="kw">val</span> totalMs = <span class="cls">SystemClock</span>.<span class="fn">elapsedRealtime</span>() - startMs
+                _debugState.value = _debugState.value?.<span class="fn">copy</span>(
+                    isRunning = <span class="kw">false</span>, isCompleted = <span class="kw">true</span>, elapsedMs = totalMs
+                )
+                _uiState.value = <span class="cls">InventoryUiState</span>.<span class="fn">Success</span>(items)
+
+            } <span class="kw">catch</span> (e: <span class="cls">Exception</span>) {
+                _debugState.value = _debugState.value?.<span class="fn">copy</span>(isRunning = <span class="kw">false</span>)
+                _uiState.value = <span class="cls">InventoryUiState</span>.<span class="fn">Error</span>(e.message ?: <span class="str">"Error en inferencia"</span>)
+            }
+        }
+    }
+
+    <span class="kw">fun</span> <span class="fn">onTextChanged</span>(newText: <span class="cls">String</span>) { _rawText.value = newText }
+
+    <span class="kw">fun</span> <span class="fn">reset</span>() {
+        _rawText.value = <span class="str">""</span>
+        _uiState.value = <span class="cls">InventoryUiState</span>.Ready
+        _debugState.value = <span class="kw">null</span>
+    }
+
+    <span class="cmt">// ── Limpieza de recursos nativos ──────────────────────────────────</span>
+    <span class="kw">override fun</span> <span class="fn">onCleared</span>() {
+        <span class="kw">super</span>.<span class="fn">onCleared</span>()
+        repository.<span class="fn">closeModel</span>()  <span class="cmt">// libera la RAM del Engine nativo</span>
+    }
+
+    <span class="cmt">// ── Factory para wiring manual (sin Hilt) ────────────────────────</span>
+    <span class="kw">class</span> <span class="cls">Factory</span>(
+        <span class="kw">private val</span> repository: <span class="cls">LocalInventoryRepository</span>,
+        <span class="kw">private val</span> modelPath: <span class="cls">String</span>
+    ) : <span class="cls">ViewModelProvider</span>.<span class="cls">Factory</span> {
+        <span class="ann">@Suppress</span>(<span class="str">"UNCHECKED_CAST"</span>)
+        <span class="kw">override fun</span> &lt;T : <span class="cls">ViewModel</span>&gt; <span class="fn">create</span>(modelClass: <span class="cls">Class</span>&lt;T&gt;): T =
+            <span class="cls">InventoryViewModel</span>(repository, modelPath) <span class="kw">as</span> T
+    }
+}</code><span class="filename">presentation/inventory/InventoryViewModel.kt</span></pre>
+
+    <aside class="warning">
+      <strong>onCleared() es crítico</strong>
+      El Engine de LiteRT-LM reserva varios GB de RAM nativa. Si no se llama
+      a <code>closeModel()</code> en <code>onCleared()</code>, esa memoria no se libera
+      cuando el usuario abandona la pantalla.
+    </aside>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 11 — UI Compose
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-11">
+    <h2>UI con Jetpack Compose</h2>
+    <div class="step-meta">
+      <span>⏱ 10 min</span>
+    </div>
+
+    <p>
+      La pantalla principal se llama <code>SmartInventoryScreen</code>. Sigue el patrón
+      <strong>State Hoisting</strong>: el composable recibe estado y lambdas, nunca el ViewModel directamente.
+    </p>
+
+    <h3>Estructura de la pantalla</h3>
+    <div class="arch-diagram">
+      SmartInventoryRoute (lee StateFlows del ViewModel)<br>
+      &nbsp;&nbsp;└─ SmartInventoryScreen (estado puro, sin ViewModel)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ Header (siempre visible)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ ModelLoadingSection (InitializingModel | Idle)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ InputSection (Ready | Processing)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ InferenceLoadingSection (Processing)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ LazyColumn + InventoryItemCard (Success)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;├─ ErrorSection (Error)<br>
+      &nbsp;&nbsp;&nbsp;&nbsp;&nbsp;&nbsp;└─ DebugPanel (visible cuando debugState != null)
+    </div>
+
+    <h4>Route — punto de contacto con el ViewModel</h4>
+    <pre><code><span class="ann">@Composable</span>
+<span class="kw">fun</span> <span class="fn">SmartInventoryRoute</span>(
+    viewModel: <span class="cls">InventoryViewModel</span>,
+    modifier: <span class="cls">Modifier</span> = <span class="cls">Modifier</span>
+) {
+    <span class="kw">val</span> rawText    <span class="kw">by</span> viewModel.rawText.<span class="fn">collectAsState</span>()
+    <span class="kw">val</span> uiState    <span class="kw">by</span> viewModel.uiState.<span class="fn">collectAsState</span>()
+    <span class="kw">val</span> debugState <span class="kw">by</span> viewModel.debugState.<span class="fn">collectAsState</span>()
+
+    <span class="fn">SmartInventoryScreen</span>(
+        rawText          = rawText,
+        uiState          = uiState,
+        debugState       = debugState,
+        onRawTextChange  = viewModel::<span class="fn">onTextChanged</span>,
+        onProcessClick   = viewModel::<span class="fn">processText</span>,
+        onResetClick     = viewModel::<span class="fn">reset</span>,
+        onRetryClick     = viewModel::<span class="fn">retryInitialization</span>,
+        modifier         = modifier
+    )
+}</code></pre>
+
+    <h4>Screen — lógica de estado con when</h4>
+    <pre><code><span class="ann">@Composable</span>
+<span class="kw">fun</span> <span class="fn">SmartInventoryScreen</span>(...) {
+    <span class="cls">Column</span>(modifier = modifier.<span class="fn">fillMaxSize</span>().<span class="fn">padding</span>(horizontal = <span class="num">16</span>.dp)) {
+        <span class="cmt">// Header siempre visible</span>
+        <span class="cls">Text</span>(text = <span class="str">"Smart Inventory Assistant"</span>, ...)
+        <span class="cls">Text</span>(text = <span class="str">"Gemma 4 E2B · LiteRT · 100% offline"</span>, ...)
+
+        <span class="kw">when</span> (uiState) {
+            <span class="kw">is</span> <span class="cls">InventoryUiState</span>.InitializingModel,
+            <span class="kw">is</span> <span class="cls">InventoryUiState</span>.Idle      -> <span class="fn">ModelLoadingSection</span>()
+            <span class="kw">is</span> <span class="cls">InventoryUiState</span>.Ready     -> <span class="fn">InputSection</span>(...)
+            <span class="kw">is</span> <span class="cls">InventoryUiState</span>.Processing -> {
+                <span class="fn">InputSection</span>(isEnabled = <span class="kw">false</span>, ...)
+                <span class="fn">InferenceLoadingSection</span>()
+            }
+            <span class="kw">is</span> <span class="cls">InventoryUiState</span>.Success   -> {
+                <span class="cls">LazyColumn</span> { <span class="fn">items</span>(uiState.items) { <span class="fn">InventoryItemCard</span>(<span class="kw">it</span>) } }
+            }
+            <span class="kw">is</span> <span class="cls">InventoryUiState</span>.Error     -> <span class="fn">ErrorSection</span>(...)
+        }
+
+        <span class="cmt">// Debug panel — siempre visible cuando hay datos</span>
+        <span class="kw">if</span> (debugState != <span class="kw">null</span>) <span class="fn">DebugPanel</span>(debugState = debugState!!)
+    }
+}</code></pre>
+
+    <h4>CategoryChip — chip con color semántico por categoría</h4>
+    <pre><code><span class="ann">@Composable</span>
+<span class="kw">private fun</span> <span class="fn">CategoryChip</span>(category: <span class="cls">String</span>) {
+    <span class="kw">val</span> (bg, fg) = <span class="kw">when</span> (category) {
+        <span class="str">"Beverages"</span> -> <span class="cls">Color</span>(<span class="num">0xFFBBDEFB</span>) <span class="kw">to</span> <span class="cls">Color</span>(<span class="num">0xFF0D47A1</span>)  <span class="cmt">// azul</span>
+        <span class="str">"Food"</span>      -> <span class="cls">Color</span>(<span class="num">0xFFC8E6C9</span>) <span class="kw">to</span> <span class="cls">Color</span>(<span class="num">0xFF1B5E20</span>)  <span class="cmt">// verde</span>
+        <span class="str">"Cleaning"</span>  -> <span class="cls">Color</span>(<span class="num">0xFFFFF9C4</span>) <span class="kw">to</span> <span class="cls">Color</span>(<span class="num">0xFFF57F17</span>)  <span class="cmt">// amarillo</span>
+        <span class="kw">else</span>        -> <span class="cls">Color</span>(<span class="num">0xFFE0E0E0</span>) <span class="kw">to</span> <span class="cls">Color</span>(<span class="num">0xFF424242</span>)  <span class="cmt">// gris</span>
+    }
+    <span class="cls">Surface</span>(color = bg, shape = <span class="cls">RoundedCornerShape</span>(<span class="num">50</span>.dp)) {
+        <span class="cls">Text</span>(text = category, modifier = <span class="cls">Modifier</span>.<span class="fn">padding</span>(<span class="num">10</span>.dp, <span class="num">4</span>.dp), color = fg)
+    }
+}</code></pre>
+
+    <h4>DebugPanel — consola en tiempo real</h4>
+    <pre><code><span class="ann">@Composable</span>
+<span class="kw">private fun</span> <span class="fn">DebugPanel</span>(debugState: <span class="cls">DebugState</span>) {
+    <span class="cls">Card</span>(colors = <span class="cls">CardDefaults</span>.<span class="fn">cardColors</span>(containerColor = <span class="cls">Color</span>(<span class="num">0xFF0D1117</span>))) {
+        <span class="cls">Row</span>(...) {
+            <span class="cls">Text</span>(<span class="str">"tokens: ${debugState.tokenCount}"</span>, color = <span class="cls">Color</span>(<span class="num">0xFF8B949E</span>))
+            <span class="cls">Text</span>(
+                <span class="kw">if</span> (debugState.isCompleted)
+                    <span class="str">"✅ completed in ${debugState.elapsedMs}ms"</span>
+                <span class="kw">else</span>
+                    <span class="str">"⏱ ${debugState.elapsedMs}ms"</span>,
+                color = <span class="kw">if</span> (debugState.isCompleted) <span class="cls">Color</span>(<span class="num">0xFF3FB950</span>) <span class="kw">else</span> <span class="cls">Color</span>(<span class="num">0xFF8B949E</span>)
+            )
+        }
+    }
+}</code></pre>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 12 — MainActivity
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-12">
+    <h2>Conecta todo en MainActivity</h2>
+    <div class="step-meta">
+      <span>⏱ 3 min</span>
+    </div>
+
+    <p>
+      <code>MainActivity</code> es el punto de ensamblaje del grafo de dependencias manual.
+      Sin Hilt, cableamos el engine → repositorio → ViewModel directamente aquí.
+    </p>
+    <p>Edita <code>MainActivity.kt</code>:</p>
+
+    <pre><code><span class="kw">class</span> <span class="cls">MainActivity</span> : <span class="cls">ComponentActivity</span>() {
+
+    <span class="cmt">/**
+     * Nombre del archivo de modelo en assets/.
+     * LiteRtInferenceEngine lo copiará a filesDir en el primer inicio.
+     * Ubicación: app/src/main/assets/gemma-4-E2B-it.litertlm
+     */</span>
+    <span class="kw">private val</span> modelAssetName = <span class="str">"gemma-4-E2B-it.litertlm"</span>
+
+    <span class="cmt">/**
+     * Grafo de dependencias manual (sin Hilt):
+     *   LiteRtInferenceEngine
+     *     ↓ implementa LocalInferenceEngine
+     *   LocalInventoryRepository(engine)
+     *     ↓
+     *   InventoryViewModel(repository, modelPath)
+     */</span>
+    <span class="kw">private val</span> viewModel: <span class="cls">InventoryViewModel</span> <span class="kw">by</span> <span class="fn">viewModels</span> {
+        <span class="cls">InventoryViewModel</span>.<span class="cls">Factory</span>(
+            repository = <span class="cls">LocalInventoryRepository</span>(
+                engine = <span class="cls">LiteRtInferenceEngine</span>(applicationContext)
+            ),
+            modelPath = modelAssetName
+        )
+    }
+
+    <span class="kw">override fun</span> <span class="fn">onCreate</span>(savedInstanceState: <span class="cls">Bundle</span>?) {
+        <span class="kw">super</span>.<span class="fn">onCreate</span>(savedInstanceState)
+        <span class="fn">enableEdgeToEdge</span>()
+        <span class="fn">setContent</span> {
+            <span class="fn">ValidiaTheme</span> {
+                <span class="fn">Scaffold</span>(modifier = <span class="cls">Modifier</span>.<span class="fn">fillMaxSize</span>()) { innerPadding ->
+                    <span class="fn">SmartInventoryRoute</span>(
+                        viewModel = viewModel,
+                        modifier  = <span class="cls">Modifier</span>.<span class="fn">padding</span>(innerPadding)
+                    )
+                }
+            }
+        }
+    }
+}</code><span class="filename">MainActivity.kt</span></pre>
+
+    <aside class="info">
+      <strong>¿Sin Hilt?</strong>
+      El grafo de dependencias de esta app es simple y lineal. Usar Hilt agregaría
+      complejidad sin beneficio real. Para proyectos más grandes con múltiples pantallas
+      y repositorios compartidos, sí se recomendaría Hilt o Koin.
+    </aside>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 13 — Ejecuta y prueba
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-13">
+    <h2>Ejecuta y prueba la app</h2>
+    <div class="step-meta">
+      <span>⏱ 5 min</span>
+    </div>
+
+    <h3>Build e instalación</h3>
+    <pre><code>./gradlew :app:installDebug</code></pre>
+    <p>O directamente desde Android Studio: <strong>Run �� Run 'app'</strong></p>
+
+    <h3>Primera ejecución</h3>
+    <ol>
+      <li>La app muestra el loader <em>"Loading AI model..."</em></li>
+      <li>En background, <code>ModelCopier</code> copia <code>gemma-4-E2B-it.litertlm</code> de <code>assets/</code> a <code>filesDir</code> (~20–60 seg según dispositivo)</li>
+      <li>El engine LiteRT inicializa el modelo (~2–8 seg)</li>
+      <li>Aparece el <code>TextField</code> y el botón <strong>"Process Inventory"</strong></li>
+    </ol>
+
+    <aside class="info">
+      <strong>Ejecuciones siguientes</strong>
+      La copia del modelo solo ocurre la primera vez. A partir de la segunda apertura,
+      la app estará lista en ~2–8 segundos (solo inicialización del engine).
+    </aside>
+
+    <h3>Pruebas de inferencia</h3>
+    <p>Pega alguno de estos textos en el campo de entrada:</p>
+
+    <pre><code>12 Coca-Cola 600ml, 6 Taragüi 500g, 4 Ala detergente</code></pre>
+    <pre><code>Recibí 3 cajas de agua mineral, 2 Sprite, 1 jabón Dove y 5 yogures</code></pre>
+    <pre><code>50 unidades de Marlboro, 12 botella de aceite girasol, 8 pack de servilletas</code></pre>
+
+    <p>
+      Presiona <strong>"Process Inventory"</strong>. Gemma analiza el texto on-device y
+      devuelve las tarjetas de inventario con cantidad, nombre y categoría.
+    </p>
+
+    <h3>Debug con Logcat</h3>
+    <p>
+      Filtra el tag <code>Gemma4Debug</code> en Logcat para ver el detalle completo:
+    </p>
+    <pre><code>════════════════════════════════════════
+  GEMMA 4 E2B — LOADING MODEL
+══════════════���═════════════════════════
+  SDK     : litertlm-android:0.10.0
+  File    : gemma-4-E2B-it.litertlm
+  Backend : CPU
+  ✅ Model loaded in 4231ms
+════════════════════════════════════════
+  GEMMA 4 E2B — NEW INFERENCE
+════════════════════════════════════════
+  Temperature : 0.1  |  TopP: 0.9  |  TopK: 1
+  USER INPUT: "12 Coca-Cola 600ml, 6 Taragüi..."
+  GENERATING TOKENS (streaming):
+  [token] [{
+  [token] "quantity":12,
+  [token] "productName":"Coca-Cola 600ml",
+  ...
+  ✅ Inference completed in 8432ms</code></pre>
+
+    <h3>Resultado esperado en la UI</h3>
+    <div style="background:#f8f9fa; border-radius:12px; padding:20px; margin:16px 0; border:1px solid #e0e0e0;">
+      <div style="font-weight:600; font-size:14px; margin-bottom:12px;">3 products detected &nbsp; <span style="color:#1a73e8; font-size:13px; cursor:pointer;">New entry</span></div>
+      <div style="background:#fff; border-radius:8px; padding:12px 16px; margin-bottom:8px; border:1px solid #e0e0e0; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="background:#e8f0fe; color:#1a73e8; font-weight:700; padding:4px 10px; border-radius:6px; font-size:13px;">x12</span>
+          <span style="font-size:15px;">Coca-Cola 600ml</span>
+        </div>
+        <span style="background:#BBDEFB; color:#0D47A1; padding:3px 10px; border-radius:50px; font-size:12px; font-weight:600;">Beverages</span>
+      </div>
+      <div style="background:#fff; border-radius:8px; padding:12px 16px; margin-bottom:8px; border:1px solid #e0e0e0; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="background:#e8f0fe; color:#1a73e8; font-weight:700; padding:4px 10px; border-radius:6px; font-size:13px;">x6</span>
+          <span style="font-size:15px;">Taragüi 500g</span>
+        </div>
+        <span style="background:#C8E6C9; color:#1B5E20; padding:3px 10px; border-radius:50px; font-size:12px; font-weight:600;">Food</span>
+      </div>
+      <div style="background:#fff; border-radius:8px; padding:12px 16px; border:1px solid #e0e0e0; display:flex; justify-content:space-between; align-items:center;">
+        <div style="display:flex; align-items:center; gap:12px;">
+          <span style="background:#e8f0fe; color:#1a73e8; font-weight:700; padding:4px 10px; border-radius:6px; font-size:13px;">x4</span>
+          <span style="font-size:15px;">Ala Detergent</span>
+        </div>
+        <span style="background:#FFF9C4; color:#F57F17; padding:3px 10px; border-radius:50px; font-size:12px; font-weight:600;">Cleaning</span>
+      </div>
+      <div style="background:#0D1117; border-radius:8px; padding:12px; margin-top:8px; font-family:monospace; font-size:12px;">
+        <div style="color:#58A6FF; font-weight:700; margin-bottom:4px;">GEMMA 4 E2B — ON-DEVICE INFERENCE</div>
+        <div style="display:flex; justify-content:space-between; color:#8B949E;">
+          <span>tokens: 48</span>
+          <span style="color:#3FB950;">✅ completed in 8432ms</span>
+        </div>
+      </div>
+    </div>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" onclick="goTo(1)">Siguiente →</button>
+    </div>
+  </div>
+
+  <!-- ─────────────────────────────────────────
+       STEP 14 — Felicidades
+  ───────────────────────────────────────── -->
+  <div class="step-page" id="step-14">
+    <div class="congrats-hero">
+      <div class="trophy">🏆</div>
+      <h2>¡Felicidades!</h2>
+    </div>
+
+    <p style="text-align:center; font-size:16px; color:#5f6368; margin-bottom:32px;">
+      Construiste una app Android con IA generativa <strong>100% offline</strong>
+      usando Gemma 4 E2B y LiteRT-LM.
+    </p>
+
+    <h3>¿Qué construiste?</h3>
+    <ul>
+      <li>
+        <strong>Motor de inferencia on-device</strong> usando
+        <code>litertlm-android:0.10.0</code> con el formato <code>.litertlm</code> nativo
+      </li>
+      <li>
+        <strong>Few-shot prompting</strong> para extraer JSON estructurado de texto libre
+        en lenguaje natural
+      </li>
+      <li>
+        <strong>Arquitectura limpia</strong> con separación de capas:
+        engine → repositorio → ViewModel → UI
+      </li>
+      <li>
+        <strong>Streaming de tokens</strong> via <code>Flow&lt;Message&gt;</code> para
+        actualizar la UI en tiempo real
+      </li>
+      <li>
+        <strong>UI reactiva</strong> con Jetpack Compose y gestión completa de estados
+        (carga del modelo, inferencia, resultados, errores)
+      </li>
+    </ul>
+
+    <h3>Lo que aprendiste</h3>
+    <div class="learn-grid">
+      <div class="learn-item">
+        <strong>LiteRT-LM vs MediaPipe</strong>
+        Por qué LiteRT-LM 0.10.0 es la elección correcta para modelos <code>.litertlm</code>
+      </div>
+      <div class="learn-item">
+        <strong>ModelCopier</strong>
+        Cómo copiar assets grandes a filesDir de forma eficiente sin OOM
+      </div>
+      <div class="learn-item">
+        <strong>ConversationConfig</strong>
+        Cómo configurar systemInstruction y SamplerConfig para JSON determinista
+      </div>
+      <div class="learn-item">
+        <strong>Backend switching</strong>
+        CPU / GPU / NPU y cuándo usar cada uno para optimizar rendimiento
+      </div>
+    </div>
+
+    <h3>Próximos pasos</h3>
+    <ul>
+      <li>
+        <strong>Habilitar GPU</strong>: cambia <code>Backend.CPU()</code> por
+        <code>Backend.GPU()</code> y compara velocidades de inferencia en el DebugPanel
+      </li>
+      <li>
+        <strong>Agregar nuevas categorías</strong>: extiende el system prompt con más
+        categorías (Electrodomésticos, Ropa, etc.) y actualiza el <code>CategoryChip</code>
+      </li>
+      <li>
+        <strong>Persistir el inventario</strong>: guarda los <code>InventoryItem</code>
+        en Room Database para acumular el inventario entre sesiones
+      </li>
+      <li>
+        <strong>Exportar a CSV/Excel</strong>: agrega un botón de exportación usando
+        <code>FileProvider</code> y <code>Intent.ACTION_SEND</code>
+      </li>
+      <li>
+        <strong>Play Feature Delivery</strong>: entrega el modelo como un
+        Dynamic Feature Module para reducir el tamaño inicial del APK
+      </li>
+      <li>
+        <strong>On-Device Model Personalization</strong>: fine-tuning del modelo con
+        datos propios del negocio usando LiteRT Training API (experimental)
+      </li>
+    </ul>
+
+    <hr>
+
+    <h3>Recursos</h3>
+    <ul>
+      <li>
+        <strong>Post original en Medium</strong>:
+        <code>medium.com/@camachoyury/gemma-4-en-android-c6818a75fa3d</code>
+      </li>
+      <li>
+        <strong>LiteRT-LM SDK</strong>:
+        <code>ai.google.dev/edge/litert</code>
+      </li>
+      <li>
+        <strong>Gemma 4 E2B en Hugging Face</strong>:
+        <code>huggingface.co/litert-community/Gemma4-4B-IT</code>
+      </li>
+      <li>
+        <strong>Repositorio del proyecto (Validia)</strong>:
+        <code>github.com/camachoyury/validia</code>
+      </li>
+      <li>
+        <strong>Google AI Edge</strong>:
+        <code>ai.google.dev/edge</code>
+      </li>
+    </ul>
+
+    <aside class="success">
+      <strong>¡Comparte tu experiencia!</strong>
+      Si este codelab te fue útil, puedes dejar una estrella ⭐ en el repositorio
+      o mencionar el post en Medium. ¡Toda retroalimentación es bienvenida!
+    </aside>
+
+    <div class="step-nav-buttons">
+      <button class="btn btn-secondary" onclick="goTo(-1)">← Anterior</button>
+      <button class="btn btn-primary" disabled>Fin del codelab ✓</button>
+    </div>
+  </div>
+
+</div><!-- #main -->
+
+<script>
+  const STEPS = [
+    { title: "Introducción",                     duration: "5 min"  },
+    { title: "Configuración del entorno",         duration: "5 min"  },
+    { title: "El problema: IA sin servidor",      duration: "5 min"  },
+    { title: "Descarga el modelo Gemma 4 E2B",   duration: "10 min" },
+    { title: "Configura el proyecto Android",     duration: "10 min" },
+    { title: "Copia el modelo al almacenamiento", duration: "5 min"  },
+    { title: "Interfaz del motor de inferencia",  duration: "5 min"  },
+    { title: "LiteRtInferenceEngine",             duration: "10 min" },
+    { title: "Repositorio de inventario",         duration: "10 min" },
+    { title: "Dominio y estado",                  duration: "5 min"  },
+    { title: "ViewModel",                         duration: "5 min"  },
+    { title: "UI con Jetpack Compose",            duration: "10 min" },
+    { title: "Conecta MainActivity",              duration: "3 min"  },
+    { title: "Ejecuta y prueba la app",           duration: "5 min"  },
+    { title: "¡Felicidades!",                     duration: "2 min"  },
+  ];
+
+  let currentStep = 0;
+
+  function goTo(delta) {
+    const next = currentStep + delta;
+    if (next < 0 || next >= STEPS.length) return;
+    showStep(next);
+  }
+
+  function showStep(idx) {
+    // Hide all pages
+    document.querySelectorAll('.step-page').forEach(p => p.classList.remove('active'));
+    document.querySelectorAll('.step-nav-item').forEach(n => {
+      n.classList.remove('active');
+      if (parseInt(n.dataset.step) < idx) n.classList.add('done');
+      else n.classList.remove('done');
+    });
+
+    // Show selected page
+    document.getElementById('step-' + idx).classList.add('active');
+    document.querySelector('[data-step="' + idx + '"]').classList.add('active');
+
+    // Update top bar
+    document.getElementById('top-bar-title').textContent = STEPS[idx].title;
+    document.getElementById('step-duration').textContent = '⏱ ' + STEPS[idx].duration;
+
+    // Update progress bar
+    const pct = ((idx + 1) / STEPS.length * 100).toFixed(0);
+    document.getElementById('progress-bar').style.width = pct + '%';
+
+    currentStep = idx;
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  }
+
+  // Nav item clicks
+  document.querySelectorAll('.step-nav-item').forEach(item => {
+    item.addEventListener('click', e => {
+      e.preventDefault();
+      showStep(parseInt(item.dataset.step));
+    });
+  });
+
+  // Mobile menu toggle
+  document.getElementById('menu-toggle').addEventListener('click', () => {
+    document.getElementById('sidebar').classList.toggle('open');
+  });
+</script>
+</body>
+</html>
