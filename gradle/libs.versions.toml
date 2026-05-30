@@ -1,4 +1,7 @@
 [versions]
+adkVersion = "0.1.0"
+ksp = "2.0.21-1.0.28"
+
 agp = "9.1.0"
 coreKtx = "1.10.1"
 junit = "4.13.2"
@@ -7,12 +10,15 @@ espressoCore = "3.5.1"
 lifecycleRuntimeKtx = "2.6.1"
 lifecycleViewmodelKtx = "2.8.4"
 activityCompose = "1.8.0"
-kotlin = "2.2.10"
+kotlin = "2.0.21"
 composeBom = "2026.02.01"
 kotlinxSerializationJson = "1.7.1"
 liteRtLmAndroid = "0.10.0"
 
 [libraries]
+adk-core-android = { group = "com.google.adk", name = "google-adk-kotlin-core-android", version.ref = "adkVersion" }
+adk-processor = { group = "com.google.adk", name = "google-adk-kotlin-processor", version.ref = "adkVersion" }
+
 androidx-core-ktx = { group = "androidx.core", name = "core-ktx", version.ref = "coreKtx" }
 junit = { group = "junit", name = "junit", version.ref = "junit" }
 androidx-junit = { group = "androidx.test.ext", name = "junit", version.ref = "junitVersion" }
@@ -33,6 +39,8 @@ kotlinx-serialization-json = { group = "org.jetbrains.kotlinx", name = "kotlinx-
 litert-lm-android = { group = "com.google.ai.edge.litertlm", name = "litertlm-android", version.ref = "liteRtLmAndroid" }
 
 [plugins]
+ksp = { id = "com.google.devtools.ksp", version.ref = "ksp" }
+
 android-application = { id = "com.android.application", version.ref = "agp" }
 kotlin-compose = { id = "org.jetbrains.kotlin.plugin.compose", version.ref = "kotlin" }
 kotlin-serialization = { id = "org.jetbrains.kotlin.plugin.serialization", version.ref = "kotlin" }
