@@ -1,6 +1,5 @@
 package com.camachoyury.validia.presentation.inventory
 
-import android.os.SystemClock
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.viewModelScope
@@ -10,6 +9,36 @@ import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.launch
 
+/**
+ * ═══════════════════════════════════════════════════════════════
+ * PASO 11 — ViewModel
+ * ═══════════════════════════════════════════════════════════════
+ *
+ * Orquesta el ciclo completo:
+ *   1. Al crearse, carga el modelo (initializeModel)
+ *   2. Cuando el usuario procesa texto, ejecuta la inferencia (processText)
+ *   3. Al destruirse, libera la RAM nativa del Engine (onCleared)
+ *
+ * ¿Qué implementar?
+ *
+ * initializeModel():
+ *   - Emitir InventoryUiState.InitializingModel
+ *   - Llamar repository.initializeModel(modelPath)
+ *   - En éxito: emitir InventoryUiState.Ready
+ *   - En error: emitir InventoryUiState.Error(e.message)
+ *
+ * processText(rawText):
+ *   - Emitir InventoryUiState.Processing
+ *   - Iniciar DebugState(isRunning = true)
+ *   - Llamar repository.parseInventoryText(rawText) { token ->
+ *       actualizar _debugState con tokenCount + 1 y elapsedMs
+ *     }
+ *   - En éxito: emitir InventoryUiState.Success(items)
+ *   - En error: emitir InventoryUiState.Error(...)
+ *
+ * onCleared():
+ *   - Llamar repository.closeModel() ← ¡crítico para evitar memory leaks!
+ */
 class InventoryViewModel(
     private val repository: LocalInventoryRepository,
     private val modelPath: String
@@ -25,71 +54,37 @@ class InventoryViewModel(
     val debugState: StateFlow<DebugState?> = _debugState.asStateFlow()
 
     init {
-        // Load the model into memory as soon as the ViewModel is created.
-        initializeModel()
+        // TODO Paso 11.1 — Llamar initializeModel() aquí para cargar el modelo
+        // al crearse el ViewModel
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // LiteRT engine initialization
+    // TODO Paso 11.2 — Implementar initializeModel()
     // ─────────────────────────────────────────────────────────────────────────
-
     private fun initializeModel() {
         viewModelScope.launch {
-            _uiState.value = InventoryUiState.InitializingModel
-            try {
-                repository.initializeModel(modelPath)
-                _uiState.value = InventoryUiState.Ready
-            } catch (e: Exception) {
-                _uiState.value = InventoryUiState.Error(
-                    "Failed to load the model. Verify the file exists at: $modelPath\n(${e.message})"
-                )
-            }
+            // TODO: emitir InitializingModel → llamar repository.initializeModel(modelPath)
+            //       → emitir Ready (o Error si falla)
         }
     }
 
     fun retryInitialization() = initializeModel()
 
     // ─────────────────────────────────────────────────────────────────────────
-    // On-device inference
+    // TODO Paso 11.3 — Implementar processText()
     // ─────────────────────────────────────────────────────────────────────────
+    fun processText(rawText: String) {
+        viewModelScope.launch {
+            // TODO: emitir Processing → iniciar DebugState →
+            //       llamar repository.parseInventoryText con onToken para actualizar debugState →
+            //       emitir Success(items) o Error
+        }
+    }
 
     fun onTextChanged(newText: String) {
         _rawText.value = newText
         if (_uiState.value is InventoryUiState.Error) {
             _uiState.value = InventoryUiState.Ready
-        }
-    }
-
-    fun processText(rawText: String) {
-        viewModelScope.launch {
-            _uiState.value = InventoryUiState.Processing
-
-            val startMs = SystemClock.elapsedRealtime()
-            _debugState.value = DebugState(isRunning = true)
-
-            try {
-                val items = repository.parseInventoryText(rawText) { _ ->
-                    val current = _debugState.value ?: DebugState()
-                    _debugState.value = current.copy(
-                        tokenCount = current.tokenCount + 1,
-                        elapsedMs = SystemClock.elapsedRealtime() - startMs
-                    )
-                }
-
-                val totalMs = SystemClock.elapsedRealtime() - startMs
-                _debugState.value = _debugState.value?.copy(
-                    isRunning = false,
-                    isCompleted = true,
-                    elapsedMs = totalMs
-                )
-                _uiState.value = InventoryUiState.Success(items)
-
-            } catch (e: Exception) {
-                _debugState.value = _debugState.value?.copy(isRunning = false)
-                _uiState.value = InventoryUiState.Error(
-                    e.message ?: "Error during local inference."
-                )
-            }
         }
     }
 
@@ -99,20 +94,19 @@ class InventoryViewModel(
         _debugState.value = null
     }
 
-    // ─────────────────────────────────────────────────────────────────────────
-    // Resource release — critical to avoid memory leaks
-    // ─────────────────────────────────────────────────────────────────────────
-
+    // ──────────────────────���──────────────────────────────────────────────────
+    // TODO Paso 11.4 — Implementar onCleared() para liberar recursos nativos
+    // ───────────────────────────────────────────────��─────────────────────────
     override fun onCleared() {
         super.onCleared()
-        // Releases native Engine memory when the ViewModel is destroyed.
-        repository.closeModel()
+        // TODO: llamar repository.closeModel()
+        // ⚠️ Si no lo hacés, el Engine reserva varios GB de RAM nativa
+        // incluso después de que el usuario cierra la pantalla.
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Factory — manual wiring without Hilt
+    // Factory — wiring manual sin Hilt
     // ─────────────────────────────────────────────────────────────────────────
-
     class Factory(
         private val repository: LocalInventoryRepository,
         private val modelPath: String

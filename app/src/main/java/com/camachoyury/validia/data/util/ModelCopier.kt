@@ -1,54 +1,45 @@
 package com.camachoyury.validia.data.util
 
 import android.content.Context
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import java.io.File
-import java.io.FileOutputStream
 
 /**
- * Utility for copying the Gemma model from assets/ to internal storage.
+ * ═══════════════════════════════════════════════════════════════
+ * PASO 6 — Copia el modelo al almacenamiento interno
+ * ═══════════════════════════════════════════════════════════════
  *
- * Why is this needed?
- * LiteRT-LM `Engine` requires an absolute path on the filesystem.
- * Android assets don't have a directly accessible physical path — they can only
- * be opened as an InputStream. This class performs that copy exactly once.
+ * El SDK LiteRT-LM requiere una ruta absoluta en el filesystem.
+ * Los assets de Android no tienen ruta física — solo se pueden
+ * abrir como InputStream. Esta clase realiza la copia exactamente
+ * una vez (idempotente).
  *
- * Optimizations:
- * - If the file already exists in filesDir, it is not copied again (idempotent).
- * - Uses streaming (8 KB buffer) to handle large files (>1 GB) without OOM.
- * - The copy runs on [Dispatchers.IO] to avoid blocking the main thread.
+ * ¿Qué implementar?
+ *  1. Verificar si el archivo ya existe en filesDir (si existe, retornar su ruta)
+ *  2. Abrir el asset como InputStream con context.assets.open(assetName)
+ *  3. Escribirlo en filesDir con FileOutputStream usando un buffer de 8 KB
+ *  4. Retornar la ruta absoluta del archivo copiado
+ *
+ * Tip: Usá .use { } para cerrar los streams automáticamente.
+ * Tip: Ejecutá todo en withContext(Dispatchers.IO).
  */
 object ModelCopier {
 
-    private const val BUFFER_SIZE = 8 * 1024 // 8 KB
+    // TODO Paso 6.1 — Declarar la constante BUFFER_SIZE = 8 * 1024
 
     /**
-     * Copies the asset to internal storage if it does not already exist.
-     *
-     * @param context   Application context.
-     * @param assetName Name of the file in assets/ (e.g. "gemma-4-E2B-it.litertlm").
-     * @return Absolute path to the copied file in filesDir.
+     * Copia el asset a filesDir si no existe.
+     * @param assetName Nombre del archivo en assets/ (ej: "gemma-4-E2B-it.litertlm")
+     * @return Ruta absoluta del archivo en filesDir.
      */
     suspend fun ensureModelReady(
         context: Context,
         assetName: String
-    ): String = withContext(Dispatchers.IO) {
-        val destFile = File(context.filesDir, assetName)
+    ): String {
+        // TODO Paso 6.2 — Implementar la lógica de copia
+        //
+        // val destFile = File(context.filesDir, assetName)
+        // if (!destFile.exists()) { ... copiar ... }
+        // return destFile.absolutePath
 
-        if (!destFile.exists()) {
-            context.assets.open(assetName).use { input ->
-                FileOutputStream(destFile).use { output ->
-                    val buffer = ByteArray(BUFFER_SIZE)
-                    var bytesRead: Int
-                    while (input.read(buffer).also { bytesRead = it } != -1) {
-                        output.write(buffer, 0, bytesRead)
-                    }
-                    output.flush()
-                }
-            }
-        }
-
-        destFile.absolutePath
+        TODO("Paso 6: Implementar la copia de assets/ a filesDir")
     }
 }

@@ -1,217 +1,105 @@
 package com.camachoyury.validia.data.ai
 
 import android.content.Context
-import android.os.SystemClock
-import android.util.Log
-import com.camachoyury.validia.data.util.ModelCopier
-import com.google.ai.edge.litertlm.Backend
-import com.google.ai.edge.litertlm.Contents
-import com.google.ai.edge.litertlm.ConversationConfig
-import com.google.ai.edge.litertlm.Engine
-import com.google.ai.edge.litertlm.EngineConfig
-import com.google.ai.edge.litertlm.SamplerConfig
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
 
 /**
- * On-device inference engine using LiteRT-LM 0.10.0.
+ * ═══════════════════════════════════════════════════════════════
+ * PASO 8 — Implementa el motor de inferencia con LiteRT-LM
+ * ═══════════════════════════════════════════════════════════════
  *
  * SDK: com.google.ai.edge.litertlm:litertlm-android:0.10.0
- * Model format: .litertlm (Gemma 4 E2B — LiteRT native format)
+ * (Agrégalo en build.gradle.kts — Paso 5 si no lo hiciste aún)
  *
- * ──────────────────────────────────────────────────────────────
- * Why this SDK and not MediaPipe Tasks GenAI
- * ──────────────────────────────────────────────────────────────
- * With MediaPipe 0.10.33 + .litertlm we needed:
- *  1. Manually build the Gemma IT chat template
- *     (<start_of_turn>user...<end_of_turn><start_of_turn>model)
- *  2. Manual early-stop by detecting the closing ']' of the JSON
- *     because MediaPipe didn't recognize the EOS token of .litertlm
- *  3. Deferred session.close() inside future.addListener()
- *     to avoid "Previous invocation still processing"
+ * Después de agregar la dependencia (Paso 5), importa:
+ *   import com.google.ai.edge.litertlm.Backend
+ *   import com.google.ai.edge.litertlm.Contents
+ *   import com.google.ai.edge.litertlm.ConversationConfig
+ *   import com.google.ai.edge.litertlm.Engine
+ *   import com.google.ai.edge.litertlm.EngineConfig
+ *   import com.google.ai.edge.litertlm.SamplerConfig
+ *   import kotlinx.coroutines.Dispatchers
+ *   import kotlinx.coroutines.withContext
  *
- * With LiteRT-LM 0.10.0:
- *  ✅ No manual chat template — ConversationConfig.systemInstruction
- *  ✅ No early-stop — native EOS token recognized correctly
- *  ✅ No callbacks or futures — native Kotlin Flow<Message>
- *  ✅ GPU/NPU support via Backend.GPU() / Backend.NPU()
- * ──────────────────────────────────────────────────────────────
+ * ¿Qué implementar?
  *
- * Filter Logcat by tag [TAG] = "Gemma4Debug" to see:
- *  - ⏱ Model load time (ms)
- *  - 🔢 Backend in use (CPU / GPU / NPU)
- *  - 🔄 Streaming tokens (Verbose)
- *  - ✅ Full response
- *  - ⏱ Total inference time (ms)
+ * initialize():
+ *   1. Si modelPath no empieza con "/", copiar con ModelCopier.ensureModelReady()
+ *   2. Crear EngineConfig(modelPath, backend = Backend.CPU(), cacheDir = ...)
+ *   3. Crear Engine(engineConfig) y llamar e.initialize()
+ *   4. Guardar el engine en la variable privada
+ *
+ * generate():
+ *   1. Crear ConversationConfig con systemInstruction y SamplerConfig
+ *      (temperature=0.1, topK=1 para máximo determinismo → JSON válido)
+ *   2. Usar engine.createConversation(config).use { conversation ->
+ *        conversation.sendMessageAsync(userInput).collect { message ->
+ *          onToken(message.toString())
+ *          accumulated.append(...)
+ *        }
+ *      }
+ *   3. Retornar el string acumulado
+ *
+ * close():
+ *   - engine?.close(); engine = null
  */
 class LiteRtInferenceEngine(
     private val context: Context
 ) : LocalInferenceEngine {
 
-    private var engine: Engine? = null
+    // TODO Paso 8.1 — Declarar: private var engine: Engine? = null
 
     companion object {
-        /** Filter this tag in Logcat to debug Gemma 4 inference. */
         const val TAG = "Gemma4Debug"
 
-        // ── Generation parameters ─────────────────────────────────────────────
-        // temperature=0.1 + topK=1 = maximum determinism for JSON outputs.
-        // For creative responses increase temperature (0.7-1.0) and topK (10-40).
-        private const val TEMPERATURE = 0.1   // Double — SamplerConfig API
-        private const val TOP_P = 0.9         // Double — required by SamplerConfig
-        private const val TOP_K = 1            // Int
-        private const val SEED = 0             // Int — 0 = random seed
+        // Parámetros de sampling — temperature baja = salida determinista (ideal para JSON)
+        // TODO Paso 8.2 — Descomentar y usar estas constantes en SamplerConfig
+        // private const val TEMPERATURE = 0.1
+        // private const val TOP_P       = 0.9
+        // private const val TOP_K       = 1
+        // private const val SEED        = 0
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 1. Model loading
+    // 1. Carga del modelo
     // ─────────────────────────────────────────────────────────────────────────
 
-    override suspend fun initialize(modelPath: String): Unit = withContext(Dispatchers.IO) {
-        Log.d(TAG, "════════════════════════════════════════")
-        Log.d(TAG, "  GEMMA 4 E2B — LOADING MODEL")
-        Log.d(TAG, "════════════════════════════════════════")
-        Log.d(TAG, "  SDK     : litertlm-android:0.10.0")
-        Log.d(TAG, "  File    : $modelPath")
-        Log.d(TAG, "  Backend : CPU (switch to Backend.GPU() for acceleration)")
+    override suspend fun initialize(modelPath: String) {
+        // TODO Paso 8.3 — Implementar la carga del modelo
+        //
+        // Pista: si modelPath no empieza con "/", usá ModelCopier.ensureModelReady()
+        // para obtener la ruta absoluta en filesDir. Luego creá EngineConfig y Engine.
 
-        val loadStart = SystemClock.elapsedRealtime()
-
-        try {
-            val physicalPath = if (modelPath.startsWith("/")) {
-                Log.d(TAG, "  Path    : absolute (no copy needed)")
-                modelPath
-            } else {
-                Log.d(TAG, "  Path    : asset → copying to filesDir...")
-                val path = ModelCopier.ensureModelReady(context, modelPath)
-                Log.d(TAG, "  Copied  : $path")
-                path
-            }
-
-            val engineConfig = EngineConfig(
-                modelPath = physicalPath,
-                // Backend.CPU() — maximum compatibility.
-                // To enable GPU (requires libOpenCL.so on device):
-                //   backend = Backend.GPU()
-                // To enable NPU (requires vendor libraries):
-                //   backend = Backend.NPU(nativeLibraryDir = context.applicationInfo.nativeLibraryDir)
-                backend = Backend.CPU(),
-                // cacheDir speeds up subsequent loads (avoids kernel recompilation)
-                cacheDir = context.cacheDir.path
-            )
-
-            val e = Engine(engineConfig)
-            e.initialize()
-            engine = e
-
-            val loadMs = SystemClock.elapsedRealtime() - loadStart
-            Log.d(TAG, "────────────────────────────────────────")
-            Log.d(TAG, "  ✅ Model loaded in ${loadMs}ms")
-            Log.d(TAG, "════════════════════════════════════════")
-
-        } catch (e: Exception) {
-            val loadMs = SystemClock.elapsedRealtime() - loadStart
-            Log.e(TAG, "════════════════════════════════════════")
-            Log.e(TAG, "  ❌ Failed to load Gemma 4 from '$modelPath' (${loadMs}ms)")
-            Log.e(TAG, "  Type   : ${e.javaClass.simpleName}")
-            Log.e(TAG, "  Message: ${e.message}")
-            e.cause?.let { Log.e(TAG, "  Cause  : ${it.message}") }
-            Log.e(TAG, "════════════════════════════════════════")
-            throw e
-        }
+        TODO("Paso 8: Implementar carga del modelo con LiteRT-LM")
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 2. Inference with native Flow (no early-stop, no manual chat template)
+    // 2. Inferencia con Flow nativo (sin early-stop ni chat template manual)
     // ─────────────────────────────────────────────────────────────────────────
 
     override suspend fun generate(
         systemPrompt: String,
         userInput: String,
         onToken: (String) -> Unit
-    ): String =
-        withContext(Dispatchers.IO) {
-            val e = engine
-                ?: throw IllegalStateException(
-                    "Engine not initialized. Call initialize() before generate()."
-                )
+    ): String {
+        // TODO Paso 8.4 — Implementar la inferencia
+        //
+        // Pista: ConversationConfig recibe el systemInstruction y SamplerConfig.
+        // El SDK aplica el chat template de Gemma IT internamente — no necesitás
+        // construir <start_of_turn>user...<end_of_turn> manualmente.
+        //
+        // engine.createConversation(config).use { conversation ->
+        //     conversation.sendMessageAsync(userInput).collect { message -> ... }
+        // }
 
-            Log.d(TAG, "════════════════════════════════════════")
-            Log.d(TAG, "  GEMMA 4 E2B — NEW INFERENCE")
-            Log.d(TAG, "════════════════════════════════════════")
-            Log.d(TAG, "  Temperature : $TEMPERATURE  |  TopP: $TOP_P  |  TopK: $TOP_K")
-            Log.d(TAG, "────────────────────────────────────────")
-            Log.d(TAG, "  SYSTEM PROMPT (${systemPrompt.length} chars):")
-            systemPrompt.chunked(400).forEachIndexed { i, chunk ->
-                Log.d(TAG, "  [sys:$i] $chunk")
-            }
-            Log.d(TAG, "  USER INPUT: \"$userInput\"")
-            Log.d(TAG, "────────────────────────────────────────")
-            Log.d(TAG, "  GENERATING TOKENS (streaming):")
-
-            val inferenceStart = SystemClock.elapsedRealtime()
-
-            // ConversationConfig injects the system instruction and sampling parameters.
-            // The SDK applies the correct chat template for Gemma IT internally.
-            // No need for <start_of_turn>user...<end_of_turn><start_of_turn>model.
-            val conversationConfig = ConversationConfig(
-                systemInstruction = Contents.of(systemPrompt),
-                samplerConfig = SamplerConfig(
-                    topK = TOP_K,
-                    topP = TOP_P,
-                    temperature = TEMPERATURE,
-                    seed = SEED
-                )
-            )
-
-            val accumulated = StringBuilder()
-
-            try {
-                // createConversation.use {} — closes resources automatically.
-                // sendMessageAsync returns Flow<Message>: each emission is a token chunk.
-                // The Flow completes when the model emits the EOS token (recognized natively).
-                // No need to cancel manually or detect the closing ']' of the JSON.
-                e.createConversation(conversationConfig).use { conversation ->
-                    conversation
-                        .sendMessageAsync(userInput)
-                        .collect { message ->
-                            val chunk = message.toString()
-                            Log.v(TAG, "  [token] $chunk")
-                            onToken(chunk)
-                            accumulated.append(chunk)
-                        }
-                }
-
-                val inferenceMs = SystemClock.elapsedRealtime() - inferenceStart
-                val response = accumulated.toString()
-                Log.d(TAG, "────────────────────────────────────────")
-                Log.d(TAG, "  FULL RESPONSE (${response.length} chars):")
-                response.chunked(500).forEachIndexed { i, chunk ->
-                    Log.d(TAG, "  [resp:$i] $chunk")
-                }
-                Log.d(TAG, "────────────────────────────────────────")
-                Log.d(TAG, "  ✅ Inference completed in ${inferenceMs}ms")
-                Log.d(TAG, "════════════════════════════════════════")
-                response
-
-            } catch (e: Exception) {
-                val inferenceMs = SystemClock.elapsedRealtime() - inferenceStart
-                Log.e(TAG, "────────────────────────────────────────")
-                Log.e(TAG, "  ❌ INFERENCE ERROR (${inferenceMs}ms)")
-                Log.e(TAG, "  Type   : ${e.javaClass.simpleName}")
-                Log.e(TAG, "  Message: ${e.message}")
-                Log.e(TAG, "════════════════════════════════════════")
-                throw e
-            }
-        }
+        TODO("Paso 8: Implementar inferencia con LiteRT-LM")
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 3. Model release
+    // 3. Liberación de recursos
     // ─────────────────────────────────────────────────────────────────────────
 
     override fun close() {
-        Log.d(TAG, "  [model] Releasing Engine from native RAM.")
-        engine?.close()
-        engine = null
+        // TODO Paso 8.5 — engine?.close(); engine = null
+        TODO("Paso 8: Implementar liberación de recursos del Engine")
     }
 }

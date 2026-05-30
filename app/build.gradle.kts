@@ -1,7 +1,8 @@
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.compose)
-    alias(libs.plugins.kotlin.serialization)
+    // TODO Paso 5: Agregar el plugin de serialización cuando implementes InventoryItem
+    // alias(libs.plugins.kotlin.serialization)
 }
 
 android {
@@ -21,10 +22,11 @@ android {
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
 
-        // LLM Inference requiere las ABIs nativas de 64 bits
-        ndk {
-            abiFilters += listOf("arm64-v8a", "x86_64")
-        }
+        // TODO Paso 5: Descomentar los abiFilters cuando agregues la dependencia LiteRT-LM.
+        // LiteRT requiere ABIs de 64 bits (arm64-v8a para dispositivos reales, x86_64 para emulador).
+        // ndk {
+        //     abiFilters += listOf("arm64-v8a", "x86_64")
+        // }
     }
 
     buildTypes {
@@ -44,12 +46,11 @@ android {
         compose = true
     }
 
-    // Evita que los archivos de modelo sean comprimidos dos veces dentro del APK.
-    // Permite acceso directo por memoria-mapeada y reduce tiempo de copia.
-    androidResources {
-        noCompress += "task"
-        noCompress += "litertlm"
-    }
+    // TODO Paso 5: Descomentar cuando agregues el modelo .litertlm a assets/.
+    // Evita doble compresión del modelo y habilita acceso por memory-mapping.
+    // androidResources {
+    //     noCompress += "litertlm"
+    // }
 }
 
 dependencies {
@@ -63,10 +64,11 @@ dependencies {
     implementation(libs.androidx.compose.ui.graphics)
     implementation(libs.androidx.compose.ui.tooling.preview)
     implementation(libs.androidx.compose.material3)
-    implementation(libs.kotlinx.serialization.json)
-    // LiteRT-LM 0.10.0: SDK nativo para modelos .litertlm (Google AI Edge)
-    // SDK correcto para el formato .litertlm — soporta EOS nativo, GPU/NPU, Flow API
-    implementation(libs.litert.lm.android)
+
+    // TODO Paso 5: Agregar estas dos dependencias cuando implementes el motor de inferencia:
+    // implementation(libs.kotlinx.serialization.json)
+    // implementation(libs.litert.lm.android)
+
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

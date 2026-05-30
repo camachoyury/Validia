@@ -1,160 +1,118 @@
 package com.camachoyury.validia.data.litert
 
-import android.util.Log
-import com.camachoyury.validia.data.ai.LiteRtInferenceEngine
 import com.camachoyury.validia.data.ai.LocalInferenceEngine
 import com.camachoyury.validia.domain.model.InventoryItem
-import kotlinx.coroutines.Dispatchers
-import kotlinx.coroutines.withContext
-import kotlinx.serialization.json.Json
 
 /**
- * On-device inventory repository using LiteRT-LM / Gemma 4 E2B.
+ * ═══════════════════════════════════════════════════════════════
+ * PASO 9 — Repositorio de inventario on-device
+ * ═══════════════════════════════════════════════════════════════
  *
- * Lifecycle:
- *  1. [initializeModel]    → Loads the model into RAM via [LocalInferenceEngine.initialize].
- *  2. [parseInventoryText] → 100% local inference; parses JSON with kotlinx.serialization.
- *  3. [closeModel]         → Releases native memory. Call in ViewModel.onCleared().
+ * Este repositorio conecta el engine de inferencia con la lógica
+ * de negocio: define el system prompt, llama al modelo y parsea
+ * el JSON resultante a objetos InventoryItem.
  *
- * Improvements over MediaPipe implementation:
- *  - No manual chat template: the SDK handles the Gemma IT format internally.
- *  - No manual early-stop: the EOS token is natively recognized by LiteRT-LM.
- *  - The repository only knows "system instructions" and "user input" — no custom formats.
+ * ¿Qué implementar?
  *
- * @param engine Injected local inference engine.
+ * 1. systemInstructions (String) — el system prompt few-shot:
+ *    - Instrucciones estrictas: retornar SOLO JSON array
+ *    - Cada objeto: quantity (Int), productName (String), category (String)
+ *    - Categorías válidas: "Beverages", "Food", "Cleaning"
+ *    - Dos ejemplos input/output para guiar al modelo
+ *
+ * 2. initializeModel(modelPath) — delegar a engine.initialize()
+ *
+ * 3. parseInventoryText(rawText, onToken):
+ *    - Llamar engine.generate(systemPrompt, userInput, onToken)
+ *    - Extraer el JSON array limpio con extractCleanJsonArray()
+ *    - Parsear con Json.decodeFromString<List<InventoryItem>>(cleanJson)
+ *
+ * 4. extractCleanJsonArray(rawResponse):
+ *    - Encontrar el primer '[' y el último ']'
+ *    - Retornar el substring entre ellos
+ *    - Si no encuentra, lanzar IllegalStateException
+ *
+ * 5. closeModel() — delegar a engine.close()
+ *
+ * Tip: Agregá estas importaciones cuando implementes:
+ *   import android.util.Log
+ *   import kotlinx.coroutines.Dispatchers
+ *   import kotlinx.coroutines.withContext
+ *   import kotlinx.serialization.json.Json
  */
 class LocalInventoryRepository(
     private val engine: LocalInferenceEngine
 ) {
-    private val json = Json {
-        ignoreUnknownKeys = true
-        isLenient = true
-    }
+
+    // TODO Paso 9.1 — Configurar la instancia de Json:
+    // private val json = Json { ignoreUnknownKeys = true; isLenient = true }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // Few-Shot System Prompt
+    // TODO Paso 9.2 — Definir el system prompt (few-shot)
+    // ─────────────────────────────────────────────────────────────────────────
+    // private val systemInstructions = """
+    //     You are an inventory assistant for stores and warehouses.
+    //     Your only job is to extract products from a text and return them as JSON.
     //
-    // Passed to ConversationConfig.systemInstruction in LiteRtInferenceEngine.
-    // The SDK applies the correct chat template internally — no need for
-    // <start_of_turn>user...<end_of_turn><start_of_turn>model manually.
-    // ─────────────────────────────────────────────────────────────────────────
-    private val systemInstructions = """
-        You are an inventory assistant for stores and warehouses.
-        Your only job is to extract products from a text and return them as JSON.
-
-        STRICT RULES:
-        - Return ONLY a valid JSON array. No extra text, no markdown.
-        - Each object: "quantity" (Int), "productName" (String), "category" (String).
-        - "category" MUST be one of: "Beverages", "Food" or "Cleaning".
-        - If you cannot classify a product, default to "Food".
-
-        EXAMPLES:
-
-        Input: "got 24 Coca-Cola 20oz and 6 bags of Lay's chips"
-        Output: [{"quantity":24,"productName":"Coca-Cola 20oz","category":"Beverages"},{"quantity":6,"productName":"Lay's Chips","category":"Food"}]
-
-        Input: "order 4 Tide detergent and 3 bottles of vegetable oil"
-        Output: [{"quantity":4,"productName":"Tide Detergent","category":"Cleaning"},{"quantity":3,"productName":"Vegetable Oil","category":"Food"}]
-
-        Now process the following text:
-    """.trimIndent()
+    //     STRICT RULES:
+    //     - Return ONLY a valid JSON array. No extra text, no markdown.
+    //     - Each object: "quantity" (Int), "productName" (String), "category" (String).
+    //     - "category" MUST be one of: "Beverages", "Food" or "Cleaning".
+    //     - If you cannot classify a product, default to "Food".
+    //
+    //     EXAMPLES:
+    //     Input: "got 24 Coca-Cola 20oz and 6 bags of Lay's chips"
+    //     Output: [{"quantity":24,"productName":"Coca-Cola 20oz","category":"Beverages"},
+    //              {"quantity":6,"productName":"Lay's Chips","category":"Food"}]
+    //
+    //     Now process the following text:
+    // """.trimIndent()
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 1. Initialization
+    // 1. Inicialización
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Loads Gemma 4 E2B into memory.
-     * Expensive operation (~2-8 sec depending on device) — always on [Dispatchers.IO].
-     *
-     * @param modelPath Asset name (.litertlm) or absolute path to the file.
-     */
-    suspend fun initializeModel(modelPath: String): Unit = withContext(Dispatchers.IO) {
-        engine.initialize(modelPath)
+    suspend fun initializeModel(modelPath: String) {
+        // TODO Paso 9.3 — Delegar a engine.initialize(modelPath)
+        TODO("Paso 9: Implementar inicialización del modelo")
     }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 2. Offline inference
+    // 2. Inferencia offline
     // ─────────────────────────────────────────────────────────────────────────
 
-    /**
-     * Parses the raw supplier text with Gemma on-device.
-     * NEVER makes network calls.
-     *
-     * @param rawText Unstructured supplier text (e.g. "12 Cokes and 5 Taragüi").
-     * @return List of extracted and classified [InventoryItem].
-     */
     suspend fun parseInventoryText(
         rawText: String,
         onToken: (String) -> Unit = {}
-    ): List<InventoryItem> =
-        withContext(Dispatchers.IO) {
-            require(rawText.isNotBlank()) { "Input text cannot be empty." }
-
-            Log.d(LiteRtInferenceEngine.TAG, "  [repo] Input text: \"$rawText\"")
-
-            try {
-                // With LiteRT-LM the engine receives system prompt and user input separately.
-                // The SDK applies the Gemma IT chat template internally — no manual formatting.
-                val rawResponse = engine.generate(
-                    systemPrompt = systemInstructions,
-                    userInput = rawText,
-                    onToken = onToken
-                )
-
-                Log.d(LiteRtInferenceEngine.TAG, "  [repo] Raw response received (${rawResponse.length} chars).")
-
-                val cleanJson = extractCleanJsonArray(rawResponse)
-                Log.d(LiteRtInferenceEngine.TAG, "  [repo] Extracted JSON: $cleanJson")
-
-                val items = json.decodeFromString<List<InventoryItem>>(cleanJson)
-                Log.d(LiteRtInferenceEngine.TAG, "  [repo] ✅ ${items.size} item(s) parsed:")
-                items.forEachIndexed { i, item ->
-                    Log.d(LiteRtInferenceEngine.TAG, "  [repo]   [$i] x${item.quantity} ${item.productName} (${item.category})")
-                }
-                items
-
-            } catch (e: Exception) {
-                Log.e(LiteRtInferenceEngine.TAG, "  [repo] ❌ Parsing failed: ${e.message}")
-                throw IllegalStateException(
-                    "Could not process the model response. Try with a clearer input text.",
-                    e
-                )
-            }
-        }
+    ): List<InventoryItem> {
+        // TODO Paso 9.4 — Implementar:
+        //   1. Llamar engine.generate(systemInstructions, rawText, onToken)
+        //   2. Limpiar el JSON con extractCleanJsonArray()
+        //   3. Parsear con json.decodeFromString<List<InventoryItem>>(cleanJson)
+        TODO("Paso 9: Implementar parseo de inventario con Gemma")
+    }
 
     // ─────────────────────────────────────────────────────────────────────────
-    // 3. Resource release
+    // 3. Liberación de recursos
+    // ─────────────────────────────────────────────────────────────────────────
+
+    fun closeModel() {
+        // TODO Paso 9.5 — Delegar a engine.close()
+        TODO("Paso 9: Implementar cierre del modelo")
+    }
+
+    // ─────────────────────────────────────────────────────────────────────────
+    // Utilidad privada
     // ─────────────────────────────────────────────────────────────────────────
 
     /**
-     * Releases the RAM occupied by the Engine.
-     * Must be called in [androidx.lifecycle.ViewModel.onCleared] to avoid memory leaks.
-     */
-    fun closeModel() = engine.close()
-
-    // ─────────────────────────────────────────────────────────────────────────
-    // Private utilities
-    // ─────────────────────────────────────────────────────────────────────────
-
-    /**
-     * Extracts the first JSON array block from the raw model response.
+     * TODO Paso 9.6 — Implementar extracción del JSON array de la respuesta raw.
      *
-     * Strategy: finds the first '[' and last ']', ignoring any introductory text
-     * or epilogue the model may add despite the strict prompt.
-     * Makes parsing robust against partially malformed responses.
+     * Los LLMs a veces agregan texto extra antes/después del JSON a pesar del prompt
+     * estricto. Esta función recorta el array JSON limpio buscando el primer '[' y
+     * el último ']'.
      */
     private fun extractCleanJsonArray(rawResponse: String): String {
-        val start = rawResponse.indexOf('[')
-        val end = rawResponse.lastIndexOf(']')
-
-        if (start == -1 || end == -1 || end <= start) {
-            throw IllegalStateException(
-                "No valid JSON array found in model response.\n" +
-                    "Response received: \"${rawResponse.take(200)}\""
-            )
-        }
-
-        return rawResponse.substring(start, end + 1)
+        TODO("Paso 9: Implementar extracción del JSON array")
     }
 }
